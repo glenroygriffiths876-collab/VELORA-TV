@@ -2,6 +2,7 @@ renderHome = function(){
   const cat=filteredCatalog();
   const nf=V5_DISCOVERY_ITEMS.filter(x=>x.service.includes('Netflix')&&x.kind==='movie').slice(0,6);
   const hu=V5_DISCOVERY_ITEMS.filter(x=>x.service==='Hulu'&&x.kind==='movie').slice(0,5);
+  const jamaica=filteredChannels().filter(x=>x.group==='Jamaica');
   document.getElementById('view-home').innerHTML=`<div class="hero realHero"><div class="heroCopy">
     <span class="heroEyebrow">VELORA • REAL SOURCES</span>
     <h1>Watch live. Discover everything.</h1>
@@ -10,7 +11,8 @@ renderHome = function(){
     <div class="actions"><button class="primary" data-view="live">◉ Watch Live TV</button><button class="ghost" data-view="discover">★ See What’s Trending</button><button class="ghost" data-view="open">▶ Free Movies</button></div>
   </div></div>
   <div class="homeContent">
-    <section class="railSection"><div class="railHead"><h2>Free Live TV • Official Sources</h2><button data-view="live">See all ›</button></div><div class="rail">${filteredChannels().slice(0,10).map(v5ChannelCard).join('')}</div></section>
+    ${jamaica.length?`<section class="railSection"><div class="railHead"><h2>Jamaica Live • TVJ + PBCJ</h2><button data-view="live">Open Jamaica TV ›</button></div><div class="rail">${jamaica.map(v5ChannelCard).join('')}</div></section>`:''}
+    <section class="railSection"><div class="railHead"><h2>Free Live TV • Official Sources</h2><button data-view="live">See all ›</button></div><div class="rail">${filteredChannels().filter(x=>x.group!=='Jamaica').slice(0,10).map(v5ChannelCard).join('')}</div></section>
     ${v5DiscoveryRail('Top 10 on Netflix Jamaica',nf)}
     ${v5DiscoveryRail('Popular on Hulu',hu)}
     ${state.openCinema.length?openRail('Watch Free • Open Cinema',state.openCinema):''}
