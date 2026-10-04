@@ -10,6 +10,7 @@ const HOST=process.env.HOST||'0.0.0.0';
 const ROOT=process.cwd();
 const DATA_DIR=process.env.VELORA_DATA_DIR||path.join(ROOT,'.velora-data');
 const DB_FILE=path.join(DATA_DIR,'catalogue.json');
+const MEDIA_GRAPH_FILE=path.join(DATA_DIR,'media-graph.json');
 const MASTER_KEY=process.env.VELORA_MASTER_KEY||'';
 const DEFAULT_REFRESH_MINUTES=Number(process.env.VELORA_REFRESH_MINUTES||30);
 const FETCH_TIMEOUT_MS=Number(process.env.VELORA_FETCH_TIMEOUT_MS||30000);
@@ -185,6 +186,10 @@ async function sandboxProviderPayload(){
 
 
 let MEDIA_GRAPH_CACHE={at:0,payload:null};
+try{
+  const persisted=JSON.parse(fs.readFileSync(MEDIA_GRAPH_FILE,'utf8'));
+  if(persisted?.provider?.id==='velora_unified')MEDIA_GRAPH_CACHE={at:Date.now(),payload:persisted};
+}catch{}
 function graphSource(item,fallbackName='Velora Source'){
   return {
     id:item.sourceId||item.providerId||slug(item.sourceName||fallbackName)||'source',
@@ -218,36 +223,51 @@ function graphMerge(items,type){
 }
 async function buildUnifiedMediaGraph(force=false){
   if(!force&&MEDIA_GRAPH_CACHE.payload&&Date.now()-MEDIA_GRAPH_CACHE.at<10*60*1000)return MEDIA_GRAPH_CACHE.payload;
-  const sandbox=await sandboxProviderPayload();
-  const connectedMovies=db.catalog.filter(x=>x.type==='movie');
-  const connectedSeries=db.catalog.filter(x=>x.type==='series');
-  const movies=graphMerge([...sandbox.movies,...connectedMovies],'movie')
-    .sort((a,b)=>String(b.publishedAt||b.year||'').localeCompare(String(a.publishedAt||a.year||'')));
-  const series=graphMerge([...sandbox.series,...connectedSeries],'series')
-    .sort((a,b)=>String(b.publishedAt||b.year||'').localeCompare(String(a.publishedAt||a.year||'')));
-  const live=db.channels.slice().sort((a,b)=>(Number(b.priority||0)-Number(a.priority||0))||String(a.name).localeCompare(String(b.name)));
-  const payload={
-    ok:true,
-    provider:{
-      id:'velora_unified',
-      name:'Velora Unified Provider',
-      type:'media-graph',
-      mode:'source-agnostic',
-      description:'One normalized catalogue assembled from every active Velora adapter.'
-    },
-    adapters:[
-      {id:'public-live',name:'Public Live TV',kind:'live',status:'active',items:live.length},
-      {id:'publisher-vod',name:'Publisher Full Movies & Episodes',kind:'vod',status:'active',items:(await publisherVod('movie')).length+(await publisherVod('series')).length},
-      {id:'archive-vod',name:'Open Film & Classic TV Archive',kind:'vod',status:'active',items:sandbox.movies.filter(x=>x.archiveId).length+sandbox.series.filter(x=>x.archiveId).length},
-      {id:'connected-providers',name:'Connected Provider Feeds',kind:'provider',status:db.catalog.length?'active':'ready',items:db.catalog.length}
-    ],
-    generatedAt:new Date().toISOString(),
-    counts:{live:live.length,movies:movies.length,series:series.length,sources:movies.reduce((n,x)=>n+(x.sourcesGraph?.length||1),0)+series.reduce((n,x)=>n+(x.sourcesGraph?.length||1),0)},
-    live,movies,series,
-    recentlyAdded:{movies:movies.slice(0,30),series:series.slice(0,30)}
-  };
-  MEDIA_GRAPH_CACHE={at:Date.now(),payload};
-  return payload;
+  try{
+    const sandbox=await sandboxProviderPayload();
+    const connectedMovies=db.catalog.filter(x=>x.type==='movie');
+    const connectedSeries=db.catalog.filter(x=>x.type==='series');
+    const movies=graphMerge([...sandbox.movies,...connectedMovies],'movie')
+      .sort((a,b)=>String(b.publishedAt||b.year||'').localeCompare(String(a.publishedAt||a.year||'')));
+    const series=graphMerge([...sandbox.series,...connectedSeries],'series')
+      .sort((a,b)=>String(b.publishedAt||b.year||'').localeCompare(String(a.publishedAt||a.year||'')));
+    const live=db.channels.slice().sort((a,b)=>(Number(b.priority||0)-Number(a.priority||0))||String(a.name).localeCompare(String(b.name)));
+    const pubMovies=await publisherVod('movie');
+    const pubSeries=await publisherVod('series');
+    const payload={
+      ok:true,
+      stale:false,
+      provider:{
+        id:'velora_unified',
+        name:'Velora Unified Provider',
+        type:'media-graph',
+        mode:'source-agnostic',
+        description:'One normalized catalogue assembled from every active Velora adapter.'
+      },
+      adapters:[
+        {id:'public-live',name:'Public Live TV',kind:'live',status:'active',items:live.length},
+        {id:'publisher-vod',name:'Publisher Full Movies & Episodes',kind:'vod',status:'active',items:pubMovies.length+pubSeries.length},
+        {id:'archive-vod',name:'Open Film & Classic TV Archive',kind:'vod',status:'active',items:sandbox.movies.filter(x=>x.archiveId).length+sandbox.series.filter(x=>x.archiveId).length},
+        {id:'connected-providers',name:'Connected Provider Feeds',kind:'provider',status:db.catalog.length?'active':'ready',items:db.catalog.length}
+      ],
+      generatedAt:new Date().toISOString(),
+      counts:{live:live.length,movies:movies.length,series:series.length,sources:movies.reduce((n,x)=>n+(x.sourcesGraph?.length||1),0)+series.reduce((n,x)=>n+(x.sourcesGraph?.length||1),0)},
+      live,movies,series,
+      recentlyAdded:{movies:movies.slice(0,30),series:series.slice(0,30)}
+    };
+    MEDIA_GRAPH_CACHE={at:Date.now(),payload};
+    try{
+      const tmp=MEDIA_GRAPH_FILE+'.tmp';
+      fs.writeFileSync(tmp,JSON.stringify(payload));
+      fs.renameSync(tmp,MEDIA_GRAPH_FILE);
+    }catch(e){console.error('Media graph persistence failed',e.message)}
+    return payload;
+  }catch(e){
+    if(MEDIA_GRAPH_CACHE.payload){
+      return {...MEDIA_GRAPH_CACHE.payload,ok:true,stale:true,staleReason:String(e.message||e)};
+    }
+    throw e;
+  }
 }
 
 async function publisherVod(kind){
