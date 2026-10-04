@@ -3,6 +3,35 @@ const V8_VOD={
   movie:{items:[],page:0,total:0,loading:false,error:''},
   series:{items:[],page:0,total:0,loading:false,error:''}
 };
+const V8_DYNAMIC_PUBLISHERS={movie:[],series:[]};
+let V8_PUBLISHERS_LOADED=false;
+
+
+async function v8LoadDynamicPublishers(){
+  if(V8_PUBLISHERS_LOADED)return;
+  try{
+    const [movies,series]=await Promise.all([
+      v7Request('/api/vod/publishers?kind=movie',{headers:{}}),
+      v7Request('/api/vod/publishers?kind=series',{headers:{}})
+    ]);
+    V8_DYNAMIC_PUBLISHERS.movie=movies.items||[];
+    V8_DYNAMIC_PUBLISHERS.series=series.items||[];
+    V8_PUBLISHERS_LOADED=true;
+  }catch(e){
+    console.warn('Publisher VOD feeds unavailable',e);
+  }
+}
+function v8DynamicPublisherCard(x){
+  return `<article class="v8VodCard" data-v8-publisher="${esc(x.id)}">
+    <div class="v8VodArt" style="background-image:linear-gradient(180deg,transparent 45%,#05070bdd),url('${esc(x.art||fallbackArt)}')">
+      <span class="badge">${x.type==='series'?'FULL EPISODE':'FULL MOVIE'}</span><span class="v8Play">▶</span>
+    </div>
+    <b>${esc(x.title)}</b><small>${esc(x.publisher||x.sourceName||'Publisher')}${x.year?' • '+esc(x.year):''}</small>
+  </article>`;
+}
+function v8FindPublisherItem(id){
+  return [...V8_DYNAMIC_PUBLISHERS.movie,...V8_DYNAMIC_PUBLISHERS.series].find(x=>x.id===id);
+}
 
 async function v8FetchArchive(kind,page=1,append=false,search=''){
   const bucket=V8_VOD[kind]; if(!bucket||bucket.loading)return;
@@ -47,8 +76,10 @@ function v8RenderVod(kind){
   const id=kind==='movie'?'movies':'series';
   const el=document.getElementById('view-'+id); if(!el)return;
   const bucket=V8_VOD[kind];
-  const publisher=kind==='movie'?V6_PUBLISHER_MOVIES:[];
-  const cards=[...publisher.map(v8PublisherCard),...bucket.items.map(v8ArchiveCard)].join('');
+  const staticPublisher=kind==='movie'?V6_PUBLISHER_MOVIES:[];
+  const dynamicPublisher=V8_DYNAMIC_PUBLISHERS[kind]||[];
+  const publisher=[...dynamicPublisher,...staticPublisher.filter(x=>!dynamicPublisher.some(y=>String(y.youtubeId||'')===String(x.youtubeId||'')))];
+  const cards=[...dynamicPublisher.map(v8DynamicPublisherCard),...staticPublisher.filter(x=>!dynamicPublisher.some(y=>String(y.youtubeId||'')===String(x.youtubeId||''))).map(v8PublisherCard),...bucket.items.map(v8ArchiveCard)].join('');
   const title=kind==='movie'?'Movies':'Series';
   const subtitle=kind==='movie'
     ?'Full movies that play inside Velora — recent publisher releases plus a large open-film library.'
@@ -68,7 +99,9 @@ function v8RenderVod(kind){
     ${bucket.items.length&&bucket.items.length<bucket.total?`<div class="loadMoreWrap"><button class="ghost" data-v8-more="${kind}" ${bucket.loading?'disabled':''}>${bucket.loading?'Loading…':'Load 48 more'}</button><small>Showing ${(publisher.length+bucket.items.length).toLocaleString()} of ${(publisher.length+bucket.total).toLocaleString()}</small></div>`:''}
   </div>`;
 }
-function v8EnsureVod(kind){
+async function v8EnsureVod(kind){
+  v8RenderVod(kind);
+  await v8LoadDynamicPublishers();
   v8RenderVod(kind);
   const b=V8_VOD[kind];
   if(!b.items.length&&!b.loading)v8FetchArchive(kind,1,false,'');
@@ -82,6 +115,13 @@ showView=function(id){
 };
 
 document.addEventListener('click',e=>{
+  const pub=e.target.closest('[data-v8-publisher]');
+  if(pub){
+    e.preventDefault();e.stopImmediatePropagation();
+    const item=v8FindPublisherItem(pub.dataset.v8Publisher);
+    if(item?.youtubeId)v6PlayYouTube({title:item.title,videoId:item.youtubeId,publisherUrl:'https://www.youtube.com/watch?v='+item.youtubeId});
+    return;
+  }
   const open=e.target.closest('[data-v8-open]');
   if(open){
     e.preventDefault();e.stopImmediatePropagation();
@@ -125,3 +165,9 @@ if(state.user){
   if(document.getElementById('view-movies')?.classList.contains('active'))v8EnsureVod('movie');
   if(document.getElementById('view-series')?.classList.contains('active'))v8EnsureVod('series');
 }
+
+async function v8RefreshHomePublishers(){
+  await v8LoadDynamicPublishers();
+  renderHome();
+}
+setTimeout(v8RefreshHomePublishers,1400);
