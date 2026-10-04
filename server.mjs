@@ -19,6 +19,79 @@ const HEALTH_CONCURRENCY=Math.max(1,Number(process.env.VELORA_HEALTH_CONCURRENCY
 const PUBLIC_RELAY_KEY=crypto.createHash('sha256').update(process.env.VELORA_RELAY_KEY||('velora-public-relay-'+process.pid)).digest();
 
 
+
+const VOD_PUBLISHER_CHANNELS=[
+  {id:'indie-rights',name:'Indie Rights Movies For Free',channelId:'UCJuyiB0GT9-q92gC_M3XLpg',kind:'movie'},
+  {id:'movie-central',name:'Movie Central',channelId:'UCGBzBkV-MinlBvHBzZawfLQ',kind:'movie'},
+  {id:'maverick-movies',name:'Maverick Movies',channelId:'UC2u3R3pjOiPZu4LtTlKkxdw',kind:'movie'},
+  {id:'filmrise-television',name:'FilmRise Television',channelId:'UCVVXDVee0JZ2dlPYtpdTZVg',kind:'series'}
+];
+const VOD_PUBLISHER_CACHE=new Map();
+
+function decodeXmlText(v=''){
+  return String(v)
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+    .replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+}
+function xmlTag(block,tag){
+  const m=block.match(new RegExp('<'+tag+'[^>]*>([\\s\\S]*?)<\\/'+tag+'>','i'));
+  return m?decodeXmlText(m[1]).trim():'';
+}
+function xmlAttr(block,tag,attr){
+  const m=block.match(new RegExp('<'+tag+'[^>]*\\s'+attr+'="([^"]+)"','i'));
+  return m?decodeXmlText(m[1]).trim():'';
+}
+function publisherEntryLooksPlayable(title,kind){
+  const t=String(title||'').toLowerCase();
+  if(/trailer|teaser|clip|shorts?|behind the scenes|interview|preview/.test(t))return false;
+  if(kind==='series')return /full episode|episode\s*\d|s\d+\s*e\d+|season\s*\d/.test(t);
+  return /full movie|full film|movie\b|film\b/.test(t);
+}
+async function fetchPublisherFeed(src){
+  const cached=VOD_PUBLISHER_CACHE.get(src.channelId);
+  if(cached&&Date.now()-cached.at<10*60*1000)return cached.items;
+  const url='https://www.youtube.com/feeds/videos.xml?channel_id='+encodeURIComponent(src.channelId);
+  const body=await fetchText(url,2*1024*1024);
+  const entries=[...body.matchAll(/<entry>([\s\S]*?)<\/entry>/gi)].map(m=>m[1]);
+  const items=entries.map((entry,i)=>{
+    const videoId=xmlTag(entry,'yt:videoId');
+    const title=xmlTag(entry,'title');
+    const published=xmlTag(entry,'published');
+    const art=xmlAttr(entry,'media:thumbnail','url')||('https://i.ytimg.com/vi/'+videoId+'/hq720.jpg');
+    if(!videoId||!title||!publisherEntryLooksPlayable(title,src.kind))return null;
+    const yr=(title.match(/\b(20\d{2}|19\d{2})\b/)||[])[0]||String(published||'').slice(0,4);
+    return {
+      id:'pub_'+src.id+'_'+videoId,
+      type:src.kind,
+      title,
+      year:yr,
+      rating:'NR',
+      genre:src.kind==='series'?'Television':'Movie',
+      quality:'HD',
+      description:'Full '+(src.kind==='series'?'episode':'movie')+' from '+src.name+'.',
+      art,
+      backdrop:art,
+      youtubeId:videoId,
+      publisher:src.name,
+      sourceName:src.name,
+      publishedAt:published,
+      playableInVelora:true,
+      url:'',
+      priority:80-i
+    };
+  }).filter(Boolean);
+  VOD_PUBLISHER_CACHE.set(src.channelId,{at:Date.now(),items});
+  return items;
+}
+async function publisherVod(kind){
+  const sources=VOD_PUBLISHER_CHANNELS.filter(x=>x.kind===kind);
+  const parts=await Promise.all(sources.map(async src=>{
+    try{return await fetchPublisherFeed(src)}catch(e){console.error('Publisher feed failed:',src.name,e.message);return[]}
+  }));
+  return parts.flat().sort((a,b)=>String(b.publishedAt||'').localeCompare(String(a.publishedAt||'')));
+}
+
 const PUBLIC_DIRECT_OVERRIDES=[
   {
     id:'jm_tvj_direct',
@@ -695,6 +768,11 @@ async function api(req,res){
 
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
   if(req.method==='GET'&&p==='/api/catalogue')return json(res,200,{ok:true,...publicSnapshot()});
+  if(req.method==='GET'&&p==='/api/vod/publishers'){
+    const kind=u.searchParams.get('kind')==='series'?'series':'movie';
+    const items=await publisherVod(kind);
+    return json(res,200,{ok:true,kind,items,updatedAt:new Date().toISOString()});
+  }
   if(req.method==='GET'&&p==='/api/providers')return json(res,200,{ok:true,providers:db.providers.map(publicProvider)});
 
   if(req.method==='POST'&&p==='/api/providers/xtream/connect'){
