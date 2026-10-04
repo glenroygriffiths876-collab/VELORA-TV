@@ -1,8 +1,9 @@
 // Velora V7 — Mass Ingest control plane
 const V7_BACKEND_KEY='velora_backend_base';
+const V7_DEFAULT_BACKEND='https://velora-tv-api-production.up.railway.app';
 
 function v7BackendBase(){
-  return (localStorage.getItem(V7_BACKEND_KEY)||'').trim().replace(/\/$/,'');
+  return (localStorage.getItem(V7_BACKEND_KEY)||V7_DEFAULT_BACKEND).trim().replace(/\/$/,'');
 }
 function v7Api(path){
   const base=v7BackendBase();
@@ -123,9 +124,9 @@ async function v7HealthScan(){
   finally{v7Busy(btn,false)}
 }
 function v7SaveBackend(){
-  const u=document.getElementById('v7BackendUrl')?.value.trim()||'';
+  const u=document.getElementById('v7BackendUrl')?.value.trim()||V7_DEFAULT_BACKEND;
   localStorage.setItem(V7_BACKEND_KEY,u.replace(/\/$/,''));
-  toast(u?'Backend URL saved':'Using same-origin backend');
+  toast('Backend URL saved');
   v7CheckBackend();
 }
 
