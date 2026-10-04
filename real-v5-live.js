@@ -73,7 +73,7 @@ function v5OpenChannel(c,full=false){
     return;
   }
   if(c.url&&full){ openPlayer(c); return; }
-  if(c.watchUrl){ window.open(c.watchUrl,'_blank','noopener,noreferrer'); return; }
+  if(c.watchUrl){ v5OpenInApp(c.watchUrl,c.name); return; }
   selectChannel(c.id,true);
 }
 
