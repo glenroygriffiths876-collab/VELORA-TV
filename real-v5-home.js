@@ -1,18 +1,23 @@
+function v5HubCard(x){return `<article class="hubCard"><div class="hubMark">${esc(x.short)}</div><div><b>${esc(x.name)}</b><p>${esc(x.note)}</p></div><button class="ghost" data-v5-external="${esc(x.url)}">Open in Velora ›</button></article>`}
+
 renderHome = function(){
   const cat=filteredCatalog();
   const nf=V5_DISCOVERY_ITEMS.filter(x=>x.service.includes('Netflix')&&x.kind==='movie').slice(0,6);
   const hu=V5_DISCOVERY_ITEMS.filter(x=>x.service==='Hulu'&&x.kind==='movie').slice(0,5);
   const jamaica=filteredChannels().filter(x=>x.group==='Jamaica');
+  const caribbean=filteredChannels().filter(x=>x.group==='Caribbean');
   document.getElementById('view-home').innerHTML=`<div class="hero realHero"><div class="heroCopy">
     <span class="heroEyebrow">VELORA • REAL SOURCES</span>
     <h1>Watch live. Discover everything.</h1>
-    <div class="meta"><span>${filteredChannels().length} free live sources</span><span>Jamaica + USA</span><span>Open cinema</span></div>
-    <p>Official free live channels, Jamaica coverage, sports and a current discovery guide for Netflix, Hulu and theaters. Velora only says “Play” when it has a stream it can actually show.</p>
+    <div class="meta"><span>${filteredChannels().length} official / connected sources</span><span>Jamaica + USA</span><span>Open cinema</span></div>
+    <p>Jamaican and Caribbean broadcasters, genuinely free live channels, sports and a current discovery guide for Netflix, Hulu and theaters. Velora only says “Play” when it has a stream it can actually show.</p>
     <div class="actions"><button class="primary" data-view="live">◉ Watch Live TV</button><button class="ghost" data-view="discover">★ See What’s Trending</button><button class="ghost" data-view="open">▶ Free Movies</button></div>
   </div></div>
   <div class="homeContent">
-    ${jamaica.length?`<section class="railSection"><div class="railHead"><h2>Jamaica Live • TVJ + PBCJ</h2><button data-view="live">Open Jamaica TV ›</button></div><div class="rail">${jamaica.map(v5ChannelCard).join('')}</div></section>`:''}
+    ${jamaica.length?`<section class="railSection"><div class="railHead"><h2>Jamaica Live</h2><button data-view="live">Open Jamaica TV ›</button></div><div class="rail">${jamaica.map(v5ChannelCard).join('')}</div></section>`:''}
+    ${caribbean.length?`<section class="railSection"><div class="railHead"><h2>Caribbean Live</h2><button data-view="live">See Caribbean channels ›</button></div><div class="rail">${caribbean.map(v5ChannelCard).join('')}</div></section>`:''}
     <section class="railSection"><div class="railHead"><h2>Free Live TV • Official Sources</h2><button data-view="live">See all ›</button></div><div class="rail">${filteredChannels().filter(x=>x.group!=='Jamaica').slice(0,10).map(v5ChannelCard).join('')}</div></section>
+    <section class="railSection"><div class="railHead"><h2>More Free TV Hubs</h2><span></span></div><div class="hubGrid">${V5_FREE_TV_HUBS.map(v5HubCard).join('')}</div></section>
     ${v5DiscoveryRail('Top 10 on Netflix Jamaica',nf)}
     ${v5DiscoveryRail('Popular on Hulu',hu)}
     ${state.openCinema.length?openRail('Watch Free • Open Cinema',state.openCinema):''}
