@@ -1,0 +1,24 @@
+/* Velora V9 — provider-client sandbox */
+.v9HomePage{padding-top:94px}
+.v9ProviderHero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;padding:30px;border-radius:26px;background:
+  radial-gradient(circle at 85% 8%,rgba(108,92,255,.28),transparent 34%),
+  radial-gradient(circle at 10% 5%,rgba(35,200,184,.18),transparent 34%),
+  linear-gradient(145deg,#161b2b,#0a0d15);border:1px solid #ffffff12;box-shadow:0 24px 70px #0005;margin-bottom:20px}
+.v9ProviderHero h1{font-size:clamp(42px,6vw,72px);letter-spacing:-.055em;line-height:.95;margin:8px 0 12px}.v9ProviderHero p{max-width:760px;color:#aab3c5;line-height:1.55}
+.v9ProviderStatus{min-width:190px;padding:15px;border-radius:16px;background:#0b1312;border:1px solid #183d38;display:grid;grid-template-columns:12px 1fr;gap:4px 8px;align-items:center}.v9ProviderStatus i{width:9px;height:9px;border-radius:50%;background:#27d5c4;box-shadow:0 0 14px #27d5c477}.v9ProviderStatus b{font-size:12px}.v9ProviderStatus small{grid-column:2;color:#7f8d8b;font-size:9px}
+.v9HomeBody{margin-left:-4vw;margin-right:-4vw}
+.v9Rail{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(180px,14vw);gap:12px;overflow-x:auto;padding:4px 4vw 10px 0;scrollbar-width:none}
+.v9VodCard{cursor:pointer;outline:none;min-width:0}.v9VodArt{aspect-ratio:2/3;background-size:cover;background-position:center;border-radius:15px;position:relative;overflow:hidden;border:1px solid #ffffff10;box-shadow:0 14px 34px #0005;transition:.18s}.v9VodCard:hover .v9VodArt,.v9VodCard:focus .v9VodArt{transform:translateY(-3px) scale(1.015);box-shadow:0 20px 50px #0008}.v9VodCard b{display:block;margin:8px 2px 2px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v9VodCard small{display:block;color:#8d97aa;font-size:10px;margin:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v9HoverPlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#ffffffec;color:#090b10;font-size:15px;box-shadow:0 12px 30px #0008;opacity:.92}
+.v9LibraryPage .pageHead{margin-bottom:15px}.v9LibraryTools{display:flex;gap:9px;margin:0 0 18px}.v9LibraryTools input{flex:1;min-width:0;padding:13px 14px;border:1px solid var(--line);border-radius:11px;background:#0b0e15;outline:none}.v9LibraryTools input:focus{border-color:#7567ff}
+.v9LibraryGrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
+.v9Season{padding:0 25px 20px}.v9Season h2{margin:18px 0 8px}
+.v9ClientPanel{margin:0 0 18px;padding:22px;border-radius:20px;border:1px solid #ffffff12;background:
+  radial-gradient(circle at 90% 10%,rgba(35,200,184,.13),transparent 32%),
+  linear-gradient(145deg,#121827,#0c1018)}
+.v9ClientPanel h2{margin:5px 0 7px}.v9ClientPanel p{color:#9ea8ba;max-width:760px;line-height:1.5}
+.v9ClientFacts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:15px 0}.v9ClientFacts span{padding:12px;border-radius:12px;background:#0a0e15;border:1px solid #ffffff0d;color:#8e98aa;font-size:10px}.v9ClientFacts b{display:block;color:#fff;font-size:20px;margin-bottom:3px}
+.v9ClientDevice{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}.v9ClientDevice small{color:#7f899b}.v9ClientDevice code{padding:6px 8px;border-radius:8px;background:#07090f;border:1px solid #ffffff0d;color:#a9eee6;font-size:10px;word-break:break-all}
+@media(max-width:1100px){.v9LibraryGrid{grid-template-columns:repeat(5,1fr)}.v9Rail{grid-auto-columns:minmax(180px,20vw)}}
+@media(max-width:900px){.v9ProviderHero{align-items:flex-start;flex-direction:column}.v9ProviderStatus{width:100%}.v9LibraryGrid{grid-template-columns:repeat(4,1fr)}.v9ClientFacts{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:680px){.v9HomePage{padding-top:86px}.v9ProviderHero{padding:20px}.v9ProviderHero h1{font-size:44px}.v9Rail{grid-auto-columns:44vw}.v9LibraryGrid{grid-template-columns:repeat(2,1fr);gap:10px}.v9LibraryTools{flex-direction:column}.v9ClientFacts{grid-template-columns:repeat(2,1fr)}}
