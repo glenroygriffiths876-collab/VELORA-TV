@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: velora-tv-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/system/status
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VELORA_MASTER_KEY
+        generateValue: true
+      - key: VELORA_REFRESH_MINUTES
+        value: "30"
+      - key: VELORA_FETCH_TIMEOUT_MS
+        value: "30000"
