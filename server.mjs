@@ -446,10 +446,25 @@ async function relayPublicUrl(req,res,target){
 
 
 
+
+const PUBLIC_DISCOVERY_INDEXES=[
+  {name:'IPTV-org',url:'https://iptv-org.github.io/iptv/index.m3u'},
+  {name:'Free-TV/IPTV',url:'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8'}
+];
+
 let PUBLIC_INDEX_CACHE={at:0,text:''};
 async function getFreshPublicIndex(){
   if(PUBLIC_INDEX_CACHE.text&&Date.now()-PUBLIC_INDEX_CACHE.at<5*60*1000)return PUBLIC_INDEX_CACHE.text;
-  const textBody=await fetchText('https://iptv-org.github.io/iptv/index.m3u',MAX_PLAYLIST_BYTES);
+  const parts=[];
+  for(const src of PUBLIC_DISCOVERY_INDEXES){
+    try{
+      const body=await fetchText(src.url,MAX_PLAYLIST_BYTES);
+      parts.push('#SOURCE:'+src.name+'\n'+body);
+    }catch(e){
+      console.error('Discovery index failed:',src.name,e.message);
+    }
+  }
+  const textBody=parts.join('\n');
   PUBLIC_INDEX_CACHE={at:Date.now(),text:textBody};
   return textBody;
 }
