@@ -1091,7 +1091,7 @@ const server=http.createServer(async(req,res)=>{
     console.error(e);if(!res.headersSent)return json(res,500,{error:String(e.message||e)});res.end();
   }
 });
-server.listen(PORT,HOST,()=>{console.log('Velora Ingest V7 listening on http://'+HOST+':'+PORT);setTimeout(()=>bootstrapPublicFeeds().catch(e=>console.error('Public bootstrap failed',e)),750)});
+server.listen(PORT,HOST,()=>{console.log('Velora Ingest V7 listening on http://'+HOST+':'+PORT);setTimeout(async()=>{try{await bootstrapPublicFeeds();const graph=await buildUnifiedMediaGraph(true);console.log('Unified media graph ready:',JSON.stringify(graph.counts))}catch(e){console.error('Startup graph warm failed',e)}},750)});
 
 let schedulerBusy=false;
 setInterval(async()=>{
