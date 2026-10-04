@@ -23,7 +23,7 @@ const PUBLIC_DIRECT_OVERRIDES=[
   {
     id:'jm_cvm_direct',
     epgId:'CVMTV.jm',
-    name:'CVM TV',
+    name:'CVM Television',
     group:'Jamaica',
     sourceName:'CVM TV Jamaica',
     upstreamUrls:['https://fl5.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8','https://fl1.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8'],
