@@ -444,6 +444,57 @@ async function relayPublicUrl(req,res,target){
   res.end();
 }
 
+
+const STREAM_RESOLVE_CACHE=new Map();
+async function probeStream(url,timeoutMs=5000){
+  const cached=STREAM_RESOLVE_CACHE.get(url);
+  if(cached&&Date.now()-cached.at<90000)return cached.ok;
+  let ok=false;
+  const ac=new AbortController();
+  const timer=setTimeout(()=>ac.abort(),timeoutMs);
+  try{
+    await assertSafeUrl(url);
+    const r=await fetch(url,{
+      method:'GET',
+      headers:{range:'bytes=0-8191','user-agent':'Mozilla/5.0 VeloraTV/8'},
+      signal:ac.signal,
+      redirect:'follow'
+    });
+    if(r.ok){
+      const ct=(r.headers.get('content-type')||'').toLowerCase();
+      if(ct.includes('mpegurl')||/\.m3u8(?:$|\?)/i.test(r.url||url)){
+        const body=await r.text();
+        ok=body.includes('#EXTM3U');
+      }else{
+        const reader=r.body?.getReader();
+        if(reader){
+          const first=await reader.read();
+          ok=!first.done&&!!first.value?.byteLength;
+          try{await reader.cancel()}catch{}
+        }else ok=true;
+      }
+    }
+  }catch{}
+  finally{clearTimeout(timer)}
+  STREAM_RESOLVE_CACHE.set(url,{ok,at:Date.now()});
+  return ok;
+}
+function channelPublicUpstreams(ch){
+  const fixed=PUBLIC_DIRECT_OVERRIDES.find(x=>x.id===ch.id);
+  if(fixed)return [...new Set((fixed.upstreamUrls||[fixed.upstreamUrl]).filter(Boolean))];
+  const urls=[];
+  const add=u=>{if(/^https?:\/\//i.test(String(u||''))&&!urls.includes(u))urls.push(u)};
+  add(ch.upstreamUrl);
+  for(const src of ch.sources||[])add(src.upstreamUrl||(/^https?:\/\//i.test(src.url||'')?src.url:''));
+  return urls;
+}
+async function resolvePublicChannel(ch){
+  const urls=channelPublicUpstreams(ch).slice(0,6);
+  if(!urls.length)return [];
+  const results=await pooled(urls,Math.min(4,urls.length),async u=>({url:u,ok:await probeStream(u)}));
+  return results.filter(x=>x.ok).map(x=>relayPath(x.url));
+}
+
 function parseM3U(textBody,provider){
   const lines=textBody.replace(/\r/g,'').split('\n'),out=[];let meta=null;
   for(const raw of lines){
@@ -455,7 +506,7 @@ function parseM3U(textBody,provider){
     }else if(line&&!line.startsWith('#')&&meta){
       const id=uid('m3u');
       const publicRelay=!!provider.publicDirectory;
-      out.push({id,num:String(out.length+1),name:meta.name,epgId:meta.epgId,group:meta.group,logo:meta.logo,now:'Live',url:publicRelay?('/api/public/channel/'+id):line,upstreamUrl:publicRelay?line:'',sourceId:provider.id,sourceName:provider.name,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',sources:[{providerId:provider.id,providerName:provider.name,kind:'m3u',url:line,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',health:'unknown',lastChecked:null}]});
+      out.push({id,num:String(out.length+1),name:meta.name,epgId:meta.epgId,group:meta.group,logo:meta.logo,now:'Live',url:publicRelay?('/api/public/channel/'+id):line,upstreamUrl:publicRelay?line:'',sourceId:provider.id,sourceName:provider.name,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',sources:[{providerId:provider.id,providerName:provider.name,kind:'m3u',url:publicRelay?relayPath(line):line,upstreamUrl:publicRelay?line:'',priority:Number(provider.priority||50),territory:provider.territory||'WORLD',health:'unknown',lastChecked:null}]});
       meta=null;
     }
   }
@@ -617,6 +668,19 @@ async function api(req,res){
     const body=JSON.parse((await readBody(req).catch(()=>''))||'{}');
     const result=await healthScan({limit:Math.min(2000,Math.max(1,Number(body.limit||250)))});
     return json(res,200,{ok:true,...result,stats:computeStats()});
+  }
+
+  const resolveMatch=p.match(/^\/api\/channel\/([^/]+)\/resolve$/);
+  if(req.method==='GET'&&resolveMatch){
+    const ch=db.channels.find(x=>x.id===decodeURIComponent(resolveMatch[1]));
+    if(!ch)return json(res,404,{ok:false,error:'Channel not found'});
+    const isPublic=String(ch.sourceId||'').startsWith('public_')||(ch.sources||[]).some(x=>String(x.providerId||'').startsWith('public_'));
+    if(!isPublic){
+      return json(res,200,{ok:true,urls:[ch.url].filter(Boolean),verified:false});
+    }
+    const urls=await resolvePublicChannel(ch);
+    if(!urls.length)return json(res,404,{ok:false,error:'No responding source'});
+    return json(res,200,{ok:true,urls,verified:true});
   }
 
   const fixedPublic=p.match(/^\/api\/public\/fixed\/([^/]+)\/(\d+)$/);
