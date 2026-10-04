@@ -1,0 +1,98 @@
+{
+  "provider": {
+    "id": "sample-open-cinema-pack",
+    "name": "Sample Open Cinema Pack",
+    "type": "distributor-json",
+    "territory": "WORLD",
+    "priority": 25,
+    "rightsStart": "2024-01-01",
+    "rightsEnd": "2030-12-31"
+  },
+  "catalog": [
+    {
+      "id": "open-blue-horizon-alt",
+      "type": "movie",
+      "title": "Blue Horizon",
+      "year": 2025,
+      "rating": "PG-13",
+      "genre": "Adventure",
+      "quality": "4K",
+      "description": "A second authorized source for the same title, included to demonstrate automatic catalogue de-duplication and source failover.",
+      "art": "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=900&q=85",
+      "backdrop": "https://images.unsplash.com/photo-1499403474843-04e72c14df8a?auto=format&fit=crop&w=1800&q=85",
+      "url": "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "rights": {"territories":["WORLD"],"starts":"2024-01-01","ends":"2030-12-31"}
+    },
+    {
+      "id": "open-sintel-feature",
+      "type": "movie",
+      "title": "Sintel",
+      "year": 2010,
+      "rating": "PG",
+      "genre": "Animation",
+      "quality": "HD",
+      "description": "Open movie used as a legal demonstration asset for the catalogue ingestion workflow.",
+      "art": "https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?auto=format&fit=crop&w=900&q=85",
+      "backdrop": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1800&q=85",
+      "url": "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+      "rights": {"territories":["WORLD"],"starts":"2024-01-01","ends":"2030-12-31"}
+    },
+    {
+      "id": "open-tears-of-steel",
+      "type": "movie",
+      "title": "Tears of Steel",
+      "year": 2012,
+      "rating": "PG-13",
+      "genre": "Science Fiction",
+      "quality": "HD",
+      "description": "Open demonstration film packaged as a distributor catalogue record.",
+      "art": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=900&q=85",
+      "backdrop": "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1800&q=85",
+      "url": "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+      "rights": {"territories":["WORLD"],"starts":"2024-01-01","ends":"2030-12-31"}
+    },
+    {
+      "id": "open-elephants-dream",
+      "type": "movie",
+      "title": "Elephants Dream",
+      "year": 2006,
+      "rating": "PG",
+      "genre": "Animation",
+      "quality": "HD",
+      "description": "Open demonstration film used to validate distributor imports and playback.",
+      "art": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=85",
+      "backdrop": "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1800&q=85",
+      "url": "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "rights": {"territories":["WORLD"],"starts":"2024-01-01","ends":"2030-12-31"}
+    },
+    {
+      "id": "jamaica-window-demo",
+      "type": "series",
+      "title": "Jamaica Window Demo",
+      "year": 2026,
+      "rating": "PG",
+      "genre": "Lifestyle",
+      "quality": "HD",
+      "description": "A territory-specific sample record that demonstrates rights filtering for Jamaica.",
+      "art": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=85",
+      "backdrop": "https://images.unsplash.com/photo-1473116763249-2faaef81ccda?auto=format&fit=crop&w=1800&q=85",
+      "url": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+      "rights": {"territories":["JM"],"starts":"2026-01-01","ends":"2027-12-31"}
+    },
+    {
+      "id": "us-only-demo",
+      "type": "movie",
+      "title": "US Rights Test",
+      "year": 2026,
+      "rating": "PG",
+      "genre": "Test",
+      "quality": "HD",
+      "description": "This record should be hidden while Velora is configured for Jamaica and appear when the admin changes the territory to US.",
+      "art": "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=900&q=85",
+      "backdrop": "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1800&q=85",
+      "url": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      "rights": {"territories":["US"],"starts":"2026-01-01","ends":"2027-12-31"}
+    }
+  ],
+  "channels": []
+}
