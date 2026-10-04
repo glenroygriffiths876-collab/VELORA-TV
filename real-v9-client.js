@@ -27,12 +27,12 @@ function v9MergeIntoState(){
   const keep=state.catalog.filter(x=>!String(x.id||'').startsWith('sandbox_')&&!ids.has(x.id));
   const mapped=v9AllVod().map(x=>({
     ...x,
-    sourceId:'velora_sandbox',
+    sourceId:'velora_unified',
     sourceName:V9_CLIENT.provider?.name||'Velora Unified Provider',
     territory:'WORLD',
     priority:70,
     rights:{territories:['WORLD'],starts:'2020-01-01',ends:'2035-12-31'},
-    sources:[{sourceId:'velora_sandbox',sourceName:V9_CLIENT.provider?.name||'Velora Unified Provider',territory:'WORLD',priority:70}]
+    sources:[{sourceId:'velora_unified',sourceName:V9_CLIENT.provider?.name||'Velora Unified Provider',territory:'WORLD',priority:70}]
   }));
   state.catalog=[...mapped,...keep];
   persist();
