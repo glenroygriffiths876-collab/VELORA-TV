@@ -21,16 +21,33 @@ const PUBLIC_RELAY_KEY=crypto.createHash('sha256').update(process.env.VELORA_REL
 
 const PUBLIC_DIRECT_OVERRIDES=[
   {
+    id:'jm_tvj_direct',
+    epgId:'TVJ.jm',
+    name:'TVJ',
+    group:'Jamaica',
+    sourceName:'Television Jamaica',
+    upstreamUrls:[
+      'https://rjr-tvj-geo.akamaized.net/hls/live/2041530/TVJ_GEO/1/streamPlaylist.m3u8',
+      'https://vod2live.univtec.com/manifest/a99a1804-dc83-411f-8c1c-b62f08cdfa59.m3u8',
+      'https://fl5.moveonjoy.com/TVJ_CARIBBEAN/index.m3u8'
+    ],
+    territory:'WORLD',
+    priority:99
+  },
+  {
     id:'jm_cvm_direct',
     epgId:'CVMTV.jm',
     name:'CVM Television',
     group:'Jamaica',
-    sourceName:'CVM TV Jamaica',
-    upstreamUrls:['https://fl5.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8','https://fl1.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8'],
+    sourceName:'CVM Television Jamaica',
+    upstreamUrls:[
+      'https://fl5.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8',
+      'https://fl1.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8'
+    ],
     territory:'WORLD',
-    priority:95
+    priority:98
   }
-];
+]
 
 function upsertDirectOverrides(){
   for(const o of PUBLIC_DIRECT_OVERRIDES){
@@ -62,6 +79,7 @@ function upsertDirectOverrides(){
       access:'Velora direct stream',
       desc:o.name+' direct live stream',
       url:relayUrls[0]||'',
+      clientUrls:[...(o.upstreamUrls||[o.upstreamUrl]).filter(Boolean)],
       upstreamUrl:'',
       sourceId:providerId,
       sourceName:o.sourceName,
