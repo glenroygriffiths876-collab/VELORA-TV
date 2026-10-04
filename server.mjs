@@ -445,6 +445,52 @@ async function relayPublicUrl(req,res,target){
 }
 
 
+
+let PUBLIC_INDEX_CACHE={at:0,text:''};
+async function getFreshPublicIndex(){
+  if(PUBLIC_INDEX_CACHE.text&&Date.now()-PUBLIC_INDEX_CACHE.at<5*60*1000)return PUBLIC_INDEX_CACHE.text;
+  const textBody=await fetchText('https://iptv-org.github.io/iptv/index.m3u',MAX_PLAYLIST_BYTES);
+  PUBLIC_INDEX_CACHE={at:Date.now(),text:textBody};
+  return textBody;
+}
+function normalizeChannelLookupName(name=''){
+  return String(name).toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\[[^\]]*\]|\([^)]*\)/g,' ')
+    .replace(/\b(2160p|1080p|720p|576p|540p|480p|360p|4k|uhd|fhd|hd|sd|tv|television)\b/g,' ')
+    .replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+}
+function findFreshIndexSources(textBody,ch){
+  const exactId=String(ch.epgId||'').toLowerCase();
+  const wanted=normalizeChannelLookupName(ch.name||'');
+  const lines=String(textBody||'').replace(/\r/g,'').split('\n');
+  const matches=[];let meta=null;
+  for(const raw of lines){
+    const line=raw.trim();
+    if(line.startsWith('#EXTINF:')){
+      const attr={};for(const m of line.matchAll(/([\w-]+)="([^"]*)"/g))attr[m[1]]=m[2];
+      const name=(line.split(',').slice(1).join(',')||attr['tvg-name']||'').trim();
+      meta={id:String(attr['tvg-id']||'').toLowerCase(),name};
+    }else if(line&&!line.startsWith('#')&&meta){
+      const sameId=exactId&&meta.id===exactId;
+      const sameName=wanted&&normalizeChannelLookupName(meta.name)===wanted;
+      if((sameId||sameName)&&/^https?:\/\//i.test(line)&&!matches.includes(line))matches.push(line);
+      meta=null;
+    }
+  }
+  return matches;
+}
+async function discoverDynamicChannelSources(ch){
+  const urls=[];
+  const add=u=>{if(/^https?:\/\//i.test(String(u||''))&&!urls.includes(u))urls.push(u)};
+  for(const u of channelPublicUpstreams(ch))add(u);
+  try{
+    const index=await getFreshPublicIndex();
+    for(const u of findFreshIndexSources(index,ch))add(u);
+  }catch(e){console.error('Fresh public index lookup failed:',ch.name,e.message)}
+  return urls.slice(0,16);
+}
+
 const STREAM_RESOLVE_CACHE=new Map();
 async function probeStream(url,timeoutMs=5000){
   const cached=STREAM_RESOLVE_CACHE.get(url);
@@ -489,9 +535,9 @@ function channelPublicUpstreams(ch){
   return urls;
 }
 async function resolvePublicChannel(ch){
-  const urls=channelPublicUpstreams(ch).slice(0,6);
+  const urls=await discoverDynamicChannelSources(ch);
   if(!urls.length)return [];
-  const results=await pooled(urls,Math.min(4,urls.length),async u=>({url:u,ok:await probeStream(u)}));
+  const results=await pooled(urls,Math.min(6,urls.length),async u=>({url:u,ok:await probeStream(u,4500)}));
   return results.filter(x=>x.ok).map(x=>relayPath(x.url));
 }
 
