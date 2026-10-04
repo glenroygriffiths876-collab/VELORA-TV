@@ -1,5 +1,5 @@
-const CACHE='velora-shell-v10';
-const SHELL=['./','./index.html','./styles.css','./real-v5.css','./app.js','./real-v5-data.js','./real-v5-home.js','./real-v5-live.js','./real-v5-runtime.js','./real-v6.css','./real-v6-media.js','./real-v6-ui.js','./real-v7.css?v=10','./real-v7-ingest.js?v=10','./manifest.json'];
+const CACHE='velora-shell-v11';
+const SHELL=['./','./index.html','./styles.css','./real-v5.css','./app.js','./real-v5-data.js','./real-v5-home.js','./real-v5-live.js','./real-v5-runtime.js','./real-v6.css','./real-v6-media.js','./real-v6-ui.js','./real-v7.css?v=11','./real-v7-ingest.js?v=11','./manifest.json'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
