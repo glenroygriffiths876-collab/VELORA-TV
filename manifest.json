@@ -1,0 +1,9 @@
+{
+  "name":"Velora TV",
+  "short_name":"Velora",
+  "start_url":"./index.html",
+  "display":"standalone",
+  "background_color":"#07080d",
+  "theme_color":"#07080d",
+  "description":"Premium live TV and VOD streaming prototype"
+}
