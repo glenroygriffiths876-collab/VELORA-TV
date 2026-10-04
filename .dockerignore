@@ -1,0 +1,7 @@
+.git
+.github
+.velora-data
+node_modules
+.env
+.env.*
+*.log
