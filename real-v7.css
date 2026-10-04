@@ -1,0 +1,27 @@
+/* Velora V7 — mass ingest control plane */
+.v7IngestShell{margin-bottom:28px}
+.v7IngestHero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:27px;border-radius:24px;background:
+  radial-gradient(circle at 82% 12%,rgba(35,200,184,.18),transparent 34%),
+  radial-gradient(circle at 15% 10%,rgba(108,92,255,.23),transparent 37%),
+  linear-gradient(145deg,#161b2a,#0b0d15);border:1px solid #ffffff12}
+.v7IngestHero h1{font-size:clamp(40px,5vw,64px);margin:7px 0 10px;letter-spacing:-.05em;line-height:.98}
+.v7IngestHero p{max-width:760px;color:#aeb6c7;line-height:1.55;margin:0}
+#v7EngineStatus{display:flex;flex-direction:column;align-items:flex-end;gap:6px;white-space:nowrap}
+#v7EngineStatus small{color:#7f8799;font-size:10px}
+.v7Status{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;border:1px solid #ffffff12;background:#0c0e15}
+.v7Status i{width:8px;height:8px;border-radius:50%;display:block}
+.v7Status.ok{color:#9df7ee;border-color:#1c5a53;background:#0a1716}.v7Status.ok i{background:#25d5c4;box-shadow:0 0 14px #25d5c488}
+.v7Status.off{color:#c2c7d3}.v7Status.off i{background:#646c7e}
+.v7MassStats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:12px 0}
+.v7MassStats>div{padding:14px 15px;border-radius:15px;border:1px solid #ffffff0e;background:#0d1018}
+.v7MassStats b{font-size:24px;display:block;letter-spacing:-.03em}.v7MassStats span{display:block;color:#7e879a;font-size:10px;margin-top:5px}
+.v7Actions{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0 17px}
+.v7Grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.v7Grid .panel{margin:0}
+.v7Grid input{min-width:0}
+.v7Hint{display:block;margin-top:11px;color:#777f91;line-height:1.5}.v7Hint code{color:#b8c0cf}
+.v7FeatureList{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.v7FeatureList span{padding:11px;border-radius:11px;background:#0a1010;border:1px solid #173532;color:#a9eee6;font-size:11px}
+.v7Pipeline{grid-column:1/-1}
+@media(max-width:1050px){.v7MassStats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.v7IngestHero{display:block;padding:20px}.v7IngestHero h1{font-size:42px}#v7EngineStatus{align-items:flex-start;margin-top:20px}.v7MassStats{grid-template-columns:repeat(2,1fr)}.v7Grid{grid-template-columns:1fr}.v7Pipeline{grid-column:auto}.v7FeatureList{grid-template-columns:1fr 1fr}.v7Actions>*{flex:1;min-width:145px}}
