@@ -16,6 +16,7 @@ const FETCH_TIMEOUT_MS=Number(process.env.VELORA_FETCH_TIMEOUT_MS||30000);
 const MAX_JSON_BYTES=Number(process.env.VELORA_MAX_JSON_BYTES||50*1024*1024);
 const MAX_PLAYLIST_BYTES=Number(process.env.VELORA_MAX_PLAYLIST_BYTES||20*1024*1024);
 const HEALTH_CONCURRENCY=Math.max(1,Number(process.env.VELORA_HEALTH_CONCURRENCY||12));
+const PUBLIC_RELAY_KEY=crypto.createHash('sha256').update(process.env.VELORA_RELAY_KEY||('velora-public-relay-'+process.pid)).digest();
 
 const PUBLIC_BOOTSTRAP_FEEDS=[
   {id:'public_us',name:'US Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/countries/us.m3u',territory:'WORLD',region:'USA',priority:45,refreshMinutes:1440},
@@ -315,6 +316,64 @@ async function syncXtream(provider){
   return {channels,catalog,durationMs:Date.now()-started};
 }
 
+
+function relayToken(url){
+  const body=Buffer.from(url,'utf8').toString('base64url');
+  const sig=crypto.createHmac('sha256',PUBLIC_RELAY_KEY).update(body).digest('base64url');
+  return body+'.'+sig;
+}
+function relayDecode(token){
+  const [body,sig]=String(token||'').split('.');
+  if(!body||!sig)return null;
+  const expected=crypto.createHmac('sha256',PUBLIC_RELAY_KEY).update(body).digest('base64url');
+  if(sig.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))return null;
+  return Buffer.from(body,'base64url').toString('utf8');
+}
+function relayPath(url){return '/api/public/relay?token='+encodeURIComponent(relayToken(url))}
+function rewriteHls(body,baseUrl){
+  const base=new URL(baseUrl);
+  return body.split(/\r?\n/).map(line=>{
+    if(!line)return line;
+    if(line.startsWith('#')){
+      return line.replace(/URI="([^"]+)"/g,(_,u)=>{
+        try{return 'URI="'+relayPath(new URL(u,base).toString())+'"'}catch{return 'URI="'+u+'"'}
+      });
+    }
+    try{return relayPath(new URL(line,base).toString())}catch{return line}
+  }).join('\n');
+}
+async function relayPublicUrl(req,res,target){
+  await assertSafeUrl(target);
+  const headers={};
+  if(req.headers.range)headers.range=req.headers.range;
+  const ac=new AbortController();req.on('close',()=>ac.abort());
+  const r=await fetch(target,{headers,signal:ac.signal,redirect:'follow'});
+  const ct=(r.headers.get('content-type')||'').toLowerCase();
+  const isHls=ct.includes('mpegurl')||/\.m3u8(?:$|\?)/i.test(r.url||target);
+  if(isHls){
+    const body=await r.text();
+    const rewritten=rewriteHls(body,r.url||target);
+    res.writeHead(r.status,{
+      'content-type':'application/vnd.apple.mpegurl',
+      'cache-control':'no-store',
+      'access-control-allow-origin':'*'
+    });
+    return res.end(rewritten);
+  }
+  const outHeaders={'cache-control':'no-store','access-control-allow-origin':'*'};
+  for(const h of ['content-type','content-length','content-range','accept-ranges']){
+    const v=r.headers.get(h);if(v)outHeaders[h]=v;
+  }
+  res.writeHead(r.status,outHeaders);
+  if(!r.body)return res.end();
+  const reader=r.body.getReader();
+  while(true){
+    const {done,value}=await reader.read();if(done)break;
+    if(!res.write(Buffer.from(value)))await new Promise(ok=>res.once('drain',ok));
+  }
+  res.end();
+}
+
 function parseM3U(textBody,provider){
   const lines=textBody.replace(/\r/g,'').split('\n'),out=[];let meta=null;
   for(const raw of lines){
@@ -325,7 +384,8 @@ function parseM3U(textBody,provider){
       meta={name,epgId:attr['tvg-id']||'',group:attr['group-title']||'Other',logo:attr['tvg-logo']||''};
     }else if(line&&!line.startsWith('#')&&meta){
       const id=uid('m3u');
-      out.push({id,num:String(out.length+1),name:meta.name,epgId:meta.epgId,group:meta.group,logo:meta.logo,now:'Live',url:line,sourceId:provider.id,sourceName:provider.name,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',sources:[{providerId:provider.id,providerName:provider.name,kind:'m3u',url:line,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',health:'unknown',lastChecked:null}]});
+      const publicRelay=!!provider.publicDirectory;
+      out.push({id,num:String(out.length+1),name:meta.name,epgId:meta.epgId,group:meta.group,logo:meta.logo,now:'Live',url:publicRelay?('/api/public/channel/'+id):line,upstreamUrl:publicRelay?line:'',sourceId:provider.id,sourceName:provider.name,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',sources:[{providerId:provider.id,providerName:provider.name,kind:'m3u',url:line,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',health:'unknown',lastChecked:null}]});
       meta=null;
     }
   }
@@ -487,6 +547,18 @@ async function api(req,res){
     const body=JSON.parse((await readBody(req).catch(()=>''))||'{}');
     const result=await healthScan({limit:Math.min(2000,Math.max(1,Number(body.limit||250)))});
     return json(res,200,{ok:true,...result,stats:computeStats()});
+  }
+
+  const publicChannelMatch=p.match(/^\/api\/public\/channel\/([^/]+)$/);
+  if(req.method==='GET'&&publicChannelMatch){
+    const ch=db.channels.find(x=>x.id===publicChannelMatch[1]);
+    if(!ch||!ch.upstreamUrl)return json(res,404,{error:'Public channel source not found'});
+    return relayPublicUrl(req,res,ch.upstreamUrl);
+  }
+  if(req.method==='GET'&&p==='/api/public/relay'){
+    const target=relayDecode(u.searchParams.get('token')||'');
+    if(!target)return json(res,400,{error:'Invalid relay token'});
+    return relayPublicUrl(req,res,target);
   }
 
   const play=p.match(/^\/api\/play\/([^/]+)\/(live|movie)\/([^/]+)$/);
