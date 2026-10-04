@@ -22,3 +22,8 @@
 @media(max-width:1100px){.v9LibraryGrid{grid-template-columns:repeat(5,1fr)}.v9Rail{grid-auto-columns:minmax(180px,20vw)}}
 @media(max-width:900px){.v9ProviderHero{align-items:flex-start;flex-direction:column}.v9ProviderStatus{width:100%}.v9LibraryGrid{grid-template-columns:repeat(4,1fr)}.v9ClientFacts{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:680px){.v9HomePage{padding-top:86px}.v9ProviderHero{padding:20px}.v9ProviderHero h1{font-size:44px}.v9Rail{grid-auto-columns:44vw}.v9LibraryGrid{grid-template-columns:repeat(2,1fr);gap:10px}.v9LibraryTools{flex-direction:column}.v9ClientFacts{grid-template-columns:repeat(2,1fr)}}
+
+.v9AdapterGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.v9AdapterGrid>div{padding:11px;border-radius:11px;background:#090d14;border:1px solid #ffffff0d}
+.v9AdapterGrid b{display:block;font-size:11px}.v9AdapterGrid small{display:block;color:#7f899b;font-size:9px;margin-top:4px;line-height:1.4}
+@media(max-width:780px){.v9AdapterGrid{grid-template-columns:repeat(2,1fr)}}
