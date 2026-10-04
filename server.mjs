@@ -17,6 +17,44 @@ const MAX_JSON_BYTES=Number(process.env.VELORA_MAX_JSON_BYTES||50*1024*1024);
 const MAX_PLAYLIST_BYTES=Number(process.env.VELORA_MAX_PLAYLIST_BYTES||20*1024*1024);
 const HEALTH_CONCURRENCY=Math.max(1,Number(process.env.VELORA_HEALTH_CONCURRENCY||12));
 
+const PUBLIC_BOOTSTRAP_FEEDS=[
+  {id:'public_us',name:'US Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/countries/us.m3u',territory:'US',priority:45,refreshMinutes:1440},
+  {id:'public_caribbean',name:'Caribbean Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/regions/carib.m3u',territory:'CARIBBEAN',priority:55,refreshMinutes:1440},
+  {id:'public_movies',name:'Public Movie Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/movies.m3u',territory:'WORLD',priority:35,refreshMinutes:1440},
+  {id:'public_series',name:'Public Series Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/series.m3u',territory:'WORLD',priority:35,refreshMinutes:1440},
+  {id:'public_sports',name:'Public Sports Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/sports.m3u',territory:'WORLD',priority:35,refreshMinutes:1440}
+];
+
+async function bootstrapPublicFeeds(){
+  if(process.env.VELORA_PUBLIC_FEEDS==='0')return;
+  for(const cfg of PUBLIC_BOOTSTRAP_FEEDS){
+    let provider=db.providers.find(p=>p.id===cfg.id);
+    if(!provider){
+      provider={
+        id:cfg.id,
+        type:'m3u-url',
+        name:cfg.name,
+        territory:cfg.territory,
+        priority:cfg.priority,
+        enabled:true,
+        refreshMinutes:cfg.refreshMinutes,
+        createdAt:new Date().toISOString(),
+        publicDirectory:true,
+        secret:protectSecret({playlistUrl:cfg.playlistUrl})
+      };
+      db.providers.push(provider);
+      saveDB();
+    }
+    try{
+      await syncProvider(provider);
+      console.log('Public feed synced:',provider.name,provider.counts?.channels||0);
+    }catch(e){
+      console.error('Public feed sync failed:',provider.name,e.message);
+    }
+  }
+}
+
+
 fs.mkdirSync(DATA_DIR,{recursive:true});
 
 const emptyDB=()=>({
@@ -487,7 +525,7 @@ const server=http.createServer(async(req,res)=>{
     console.error(e);if(!res.headersSent)return json(res,500,{error:String(e.message||e)});res.end();
   }
 });
-server.listen(PORT,HOST,()=>console.log('Velora Ingest V7 listening on http://'+HOST+':'+PORT));
+server.listen(PORT,HOST,()=>{console.log('Velora Ingest V7 listening on http://'+HOST+':'+PORT);setTimeout(()=>bootstrapPublicFeeds().catch(e=>console.error('Public bootstrap failed',e)),750)});
 
 let schedulerBusy=false;
 setInterval(async()=>{
