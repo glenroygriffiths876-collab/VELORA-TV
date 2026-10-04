@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#07080d" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="styles.css" />
+<title>Velora TV</title>
+</head>
+<body>
+<div id="toast" class="toast"></div>
+<div id="login" class="loginShell">
+  <div class="loginBackdrop"></div>
+  <form id="loginForm" class="loginCard">
+    <div class="brand big"><span class="brandMark">V</span><span>VELORA</span></div>
+    <h1>Watch everything you love.</h1>
+    <p>This build uses public demo media. Connect only feeds you own or are authorized to distribute.</p>
+    <label>Email<input id="loginEmail" type="email" value="demo@velora.app" required></label>
+    <label>Password<input id="loginPassword" type="password" value="demo1234" required></label>
+    <button class="primary wide" type="submit">Sign in</button>
+    <button class="ghost wide" id="demoBtn" type="button">Continue with demo account</button>
+    <small>Demo: demo@velora.app / demo1234</small>
+  </form>
+</div>
+
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <button class="brand brandButton" data-view="home"><span class="brandMark">V</span><span>VELORA</span></button>
+    <nav class="mainnav" aria-label="Primary">
+      <button data-view="home" class="active">Home</button>
+      <button data-view="live">Live TV</button>
+      <button data-view="movies">Movies</button>
+      <button data-view="series">Series</button>
+      <button data-view="search">Search</button>
+    </nav>
+    <div class="topActions">
+      <button class="iconBtn" data-view="search" aria-label="Search">⌕</button>
+      <button class="profilePill" id="profileBtn"><span class="avatar" id="avatar">G</span><span id="profileName">Glenroy</span><span>⌄</span></button>
+    </div>
+  </header>
+
+  <aside class="profileMenu" id="profileMenu">
+    <div class="profileItem"><span class="avatar">G</span><div><b>Glenroy</b><small>Primary</small></div></div>
+    <button id="kidsMode">👦 Kids profile</button>
+    <button data-view="mylist">♡ My List</button>
+    <button data-view="settings">⚙ Settings</button>
+    <button data-view="admin">▦ Admin / Feed</button>
+    <button id="signOut">⇥ Sign out</button>
+  </aside>
+
+  <main>
+    <section id="view-home" class="view active"></section>
+    <section id="view-live" class="view"></section>
+    <section id="view-movies" class="view"></section>
+    <section id="view-series" class="view"></section>
+    <section id="view-search" class="view"></section>
+    <section id="view-mylist" class="view"></section>
+    <section id="view-settings" class="view"></section>
+    <section id="view-admin" class="view"></section>
+  </main>
+
+  <nav class="mobileNav">
+    <button data-view="home" class="active"><span>⌂</span>Home</button>
+    <button data-view="live"><span>◉</span>Live</button>
+    <button data-view="movies"><span>▶</span>Movies</button>
+    <button data-view="search"><span>⌕</span>Search</button>
+    <button data-view="mylist"><span>♡</span>My List</button>
+  </nav>
+</div>
+
+<div class="playerOverlay" id="playerOverlay" aria-hidden="true">
+  <div class="playerFrame">
+    <video id="mainPlayer" controls playsinline></video>
+    <div class="playerTop">
+      <button class="circleBtn" id="closePlayer">←</button>
+      <div><small id="playerType">NOW PLAYING</small><h2 id="playerTitle">Title</h2></div>
+      <button class="circleBtn" id="playerFav">♡</button>
+    </div>
+    <div class="channelOverlay" id="channelOverlay"></div>
+  </div>
+</div>
+
+<div class="modal" id="detailsModal">
+  <div class="detailsCard" id="detailsCard"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
