@@ -18,8 +18,8 @@ const MAX_PLAYLIST_BYTES=Number(process.env.VELORA_MAX_PLAYLIST_BYTES||20*1024*1
 const HEALTH_CONCURRENCY=Math.max(1,Number(process.env.VELORA_HEALTH_CONCURRENCY||12));
 
 const PUBLIC_BOOTSTRAP_FEEDS=[
-  {id:'public_us',name:'US Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/countries/us.m3u',territory:'US',priority:45,refreshMinutes:1440},
-  {id:'public_caribbean',name:'Caribbean Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/regions/carib.m3u',territory:'CARIBBEAN',priority:55,refreshMinutes:1440},
+  {id:'public_us',name:'US Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/countries/us.m3u',territory:'WORLD',region:'USA',priority:45,refreshMinutes:1440},
+  {id:'public_caribbean',name:'Caribbean Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/regions/carib.m3u',territory:'WORLD',region:'Caribbean',priority:55,refreshMinutes:1440},
   {id:'public_movies',name:'Public Movie Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/movies.m3u',territory:'WORLD',priority:35,refreshMinutes:1440},
   {id:'public_series',name:'Public Series Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/series.m3u',territory:'WORLD',priority:35,refreshMinutes:1440},
   {id:'public_sports',name:'Public Sports Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/sports.m3u',territory:'WORLD',priority:35,refreshMinutes:1440}
@@ -35,6 +35,7 @@ async function bootstrapPublicFeeds(){
         type:'m3u-url',
         name:cfg.name,
         territory:cfg.territory,
+        region:cfg.region||'Global',
         priority:cfg.priority,
         enabled:true,
         refreshMinutes:cfg.refreshMinutes,
@@ -47,7 +48,7 @@ async function bootstrapPublicFeeds(){
     }
     try{
       await syncProvider(provider);
-      console.log('Public feed synced:',provider.name,provider.counts?.channels||0);
+      console.log('Public feed synced:',provider.name,provider.counts?.channels||0,'unique total:',db.channels.length);
     }catch(e){
       console.error('Public feed sync failed:',provider.name,e.message);
     }
