@@ -3,8 +3,8 @@ renderLive = function(){
   const groups=['All',...new Set(liveChannels.map(x=>x.group||'Other'))];
   if(!groups.includes(state.currentFilter))state.currentFilter='All';
   document.getElementById('view-live').innerHTML=`<div class="contentPage">
-    <div class="pageHead"><div><span class="heroEyebrow">FREE LIVE TV</span><h1>Live Guide</h1><p>Real official free streams first. Imported licensed channels appear here too when connected.</p></div><span class="status"><i></i>${liveChannels.length} sources</span></div>
-    <div class="realSourceNote"><b>✓ Verified-source mode</b><span>Velora no longer labels demo videos as TV channels.</span></div>
+    <div class="pageHead"><div><span class="heroEyebrow">FREE LIVE TV</span><h1>Live Guide</h1><p>Official and first-party streams first. Some broadcaster platforms may require a free account, subscription or event pass; imported licensed channels appear here too when connected.</p></div><span class="status"><i></i>${liveChannels.length} sources</span></div>
+    <div class="realSourceNote"><b>✓ Verified-source mode</b><span>Jamaica and Caribbean broadcaster services are clearly separated from genuinely free channels and connected licensed feeds.</span></div>
     <div class="liveLayout"><aside class="channelPane">
       <div class="channelToolbar"><input id="channelSearch" placeholder="Search channels…"></div>
       <div class="channelCats">${groups.map((g,i)=>`<button class="chip ${g===state.currentFilter?'active':''}" data-group="${esc(g)}">${esc(g)}</button>`).join('')}</div>
