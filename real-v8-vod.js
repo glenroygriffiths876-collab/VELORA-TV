@@ -156,7 +156,9 @@ renderHome=function(){
   });
   const playable=document.createElement('section');
   playable.className='railSection v8HomePlayable';
-  playable.innerHTML=`<div class="railHead"><h2>Watch Now • Full Movies in Velora</h2><button data-view="movies">See all ›</button></div><div class="v6MovieRail">${V6_PUBLISHER_MOVIES.slice(0,10).map(v8PublisherCard).join('')}</div>`;
+  const dynamic=V8_DYNAMIC_PUBLISHERS.movie||[];
+  const homeStatic=V6_PUBLISHER_MOVIES.filter(x=>!dynamic.some(y=>String(y.youtubeId||'')===String(x.youtubeId||'')));
+  playable.innerHTML=`<div class="railHead"><h2>New Full Movies • Play in Velora</h2><button data-view="movies">See all ›</button></div><div class="v6MovieRail">${dynamic.slice(0,8).map(v8DynamicPublisherCard).join('')}${homeStatic.slice(0,Math.max(0,10-dynamic.length)).map(v8PublisherCard).join('')}</div>`;
   content.prepend(playable);
 };
 
