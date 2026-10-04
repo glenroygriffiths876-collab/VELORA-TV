@@ -14,7 +14,7 @@ renderLive = function(){
       <video id="inlineLive" class="hidden" controls playsinline></video>
       <iframe id="inlineLiveEmbed" class="inlineLiveEmbed hidden" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
       <div id="officialWatchPanel" class="officialWatchPanel"><div class="channelMonogram big">TV</div><h2>Choose a channel</h2><p>Select an official free source from the guide.</p></div>
-      <div class="nowPlaying"><div><span class="heroEyebrow">SELECTED CHANNEL</span><h2 id="nowChannel">Choose a channel</h2><p id="nowProgram">Official free streams open here when embedding is allowed.</p></div><button class="ghost" id="openFullLive">Open / Fullscreen ↗</button></div>
+      <div class="nowPlaying"><div><span class="heroEyebrow">SELECTED CHANNEL</span><h2 id="nowChannel">Choose a channel</h2><p id="nowProgram">Official free streams open here when embedding is allowed.</p></div><div class="liveActions"><button class="ghost" id="openProviderFallback" hidden>Official source ↗</button><button class="ghost" id="openFullLive">Open / Fullscreen ↗</button></div></div>
     </div><div class="sourceGuide" id="guideBody"></div></div></div>
   </div>`;
   drawChannelList(); drawGuide();
@@ -46,8 +46,8 @@ selectChannel = function(id,autoplay=true){
   const c=filteredChannels().find(x=>x.id===id); if(!c)return;
   state.currentChannel=c; drawChannelList(document.getElementById('channelSearch')?.value||'');
   const t=document.getElementById('nowChannel'), p=document.getElementById('nowProgram');
-  const v=document.getElementById('inlineLive'), f=document.getElementById('inlineLiveEmbed'), panel=document.getElementById('officialWatchPanel');
-  if(t)t.textContent=c.name; if(p)p.textContent=`${c.now||'Live'} • ${c.access||c.group||''}`;
+  const v=document.getElementById('inlineLive'), f=document.getElementById('inlineLiveEmbed'), panel=document.getElementById('officialWatchPanel'), fallback=document.getElementById('openProviderFallback');
+  if(t)t.textContent=c.name; if(p)p.textContent=`${c.now||'Live'} • ${c.access||c.group||''}`; if(fallback){fallback.hidden=!c.watchUrl;fallback.dataset.v5External=c.watchUrl||'';fallback.textContent=c.embedUrl?'Official source ↗':'Watch official stream ↗'}
   if(v){v.pause();v.removeAttribute('src');v.classList.add('hidden')}
   if(f){f.src='about:blank';f.classList.add('hidden')}
   if(panel)panel.classList.add('hidden');
