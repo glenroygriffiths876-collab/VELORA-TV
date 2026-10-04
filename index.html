@@ -15,7 +15,7 @@
   <form id="loginForm" class="loginCard">
     <div class="brand big"><span class="brandMark">V</span><span>VELORA</span></div>
     <h1>Watch everything you love.</h1>
-    <p>This build uses public demo media. Connect only feeds you own or are authorized to distribute.</p>
+    <p>Premium streaming interface with playable open/public-domain cinema plus support for authorized commercial feeds.</p>
     <label>Email<input id="loginEmail" type="email" value="demo@velora.app" required></label>
     <label>Password<input id="loginPassword" type="password" value="demo1234" required></label>
     <button class="primary wide" type="submit">Sign in</button>
@@ -32,6 +32,7 @@
       <button data-view="live">Live TV</button>
       <button data-view="movies">Movies</button>
       <button data-view="series">Series</button>
+      <button data-view="open">Open Library</button>
       <button data-view="search">Search</button>
     </nav>
     <div class="topActions">
@@ -54,6 +55,7 @@
     <section id="view-live" class="view"></section>
     <section id="view-movies" class="view"></section>
     <section id="view-series" class="view"></section>
+    <section id="view-open" class="view"></section>
     <section id="view-search" class="view"></section>
     <section id="view-mylist" class="view"></section>
     <section id="view-settings" class="view"></section>
@@ -72,6 +74,7 @@
 <div class="playerOverlay" id="playerOverlay" aria-hidden="true">
   <div class="playerFrame">
     <video id="mainPlayer" controls playsinline></video>
+    <iframe id="archivePlayer" class="archivePlayer hidden" title="Open Library player" allow="autoplay; fullscreen" allowfullscreen></iframe>
     <div class="playerTop">
       <button class="circleBtn" id="closePlayer">←</button>
       <div><small id="playerType">NOW PLAYING</small><h2 id="playerTitle">Title</h2></div>

@@ -1,9 +1,9 @@
 {
-  "name":"Velora TV",
-  "short_name":"Velora",
-  "start_url":"./index.html",
-  "display":"standalone",
-  "background_color":"#07080d",
-  "theme_color":"#07080d",
-  "description":"Premium live TV and VOD streaming prototype"
+  "name": "Velora TV — Live, Movies & Open Library",
+  "short_name": "Velora",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#07080d",
+  "theme_color": "#07080d",
+  "description": "Premium streaming interface with Live TV, VOD and public-domain Open Library."
 }
