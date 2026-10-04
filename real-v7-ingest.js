@@ -253,3 +253,45 @@ async function v7AutoHydrate(){
   }catch(e){console.warn('Velora backend catalogue unavailable',e)}
 }
 setTimeout(v7AutoHydrate,900);
+
+
+function v7IsPublicDirectoryItem(x){
+  return String(x?.sourceId||'').startsWith('public_') || (x?.sources||[]).some(s=>String(s.sourceId||s.providerId||'').startsWith('public_'));
+}
+const v7OriginalFilteredChannels=filteredChannels;
+filteredChannels=function(){
+  const seen=new Set(),all=[...V5_OFFICIAL_CHANNELS,...state.channels.filter(x=>v7IsPublicDirectoryItem(x)||rightsActive(x))];
+  return all.filter(x=>{const k=String(x.epgId||x.name||x.id).toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
+};
+
+function v7CatalogueSummary(){
+  const all=filteredChannels();
+  const publicCount=all.filter(v7IsPublicDirectoryItem).length;
+  const sports=all.filter(x=>/sport/i.test((x.group||'')+' '+(x.sourceName||''))).length;
+  const movie=all.filter(x=>/movie/i.test((x.group||'')+' '+(x.sourceName||''))).length;
+  const series=all.filter(x=>/series/i.test((x.group||'')+' '+(x.sourceName||''))).length;
+  return {all:all.length,publicCount,sports,movie,series};
+}
+
+const v7PreviousRenderLive=renderLive;
+renderLive=function(){
+  v7PreviousRenderLive();
+  const page=document.querySelector('#view-live .contentPage');if(!page)return;
+  const c=v7CatalogueSummary();
+  const banner=document.createElement('div');
+  banner.className='v7CatalogueBanner';
+  banner.innerHTML=`<div><span class="heroEyebrow">MASS LIVE CATALOGUE</span><b>${c.all.toLocaleString()} channels loaded</b><small>${c.publicCount.toLocaleString()} bulk public-directory channels • ${c.sports.toLocaleString()} sports • ${c.movie.toLocaleString()} movie • ${c.series.toLocaleString()} series-labelled streams</small></div><button class="primary" id="v7ShowAllChannels">Browse all</button>`;
+  page.prepend(banner);
+  drawChannelList(document.getElementById('channelSearch')?.value||'');
+  drawGuide();
+};
+
+document.addEventListener('click',e=>{
+  if(e.target.id==='v7ShowAllChannels'){
+    state.currentFilter='All';
+    const input=document.getElementById('channelSearch');if(input)input.value='';
+    document.querySelectorAll('.channelCats .chip').forEach(b=>b.classList.toggle('active',b.dataset.group==='All'));
+    drawChannelList('');
+    document.getElementById('channelList')?.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+},true);
