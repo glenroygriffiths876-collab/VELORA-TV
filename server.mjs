@@ -84,6 +84,105 @@ async function fetchPublisherFeed(src){
   VOD_PUBLISHER_CACHE.set(src.channelId,{at:Date.now(),items});
   return items;
 }
+
+async function sandboxArchiveVod(kind='movie',rows=96){
+  const collection=kind==='series'?'classic_tv':'feature_films';
+  const q='collection:'+collection+' AND mediatype:movies';
+  const u=new URL('https://archive.org/advancedsearch.php');
+  u.searchParams.set('q',q);
+  for(const field of ['identifier','title','description','year','date','subject','creator','downloads'])u.searchParams.append('fl[]',field);
+  u.searchParams.append('sort[]','downloads desc');
+  u.searchParams.set('rows',String(rows));
+  u.searchParams.set('page','1');
+  u.searchParams.set('output','json');
+  const data=await fetchJSON(u.toString());
+  return (data?.response?.docs||[]).map((d,i)=>{
+    const id=String(d.identifier||'').trim();
+    const title=String(Array.isArray(d.title)?d.title[0]:d.title||'Untitled').replace(/<[^>]+>/g,'').trim();
+    const yr=(String(d.year||d.date||'').match(/\b(18|19|20)\d{2}\b/)||[])[0]||'';
+    const subject=Array.isArray(d.subject)?d.subject.join(' '):String(d.subject||'');
+    const genre=/horror/i.test(subject)?'Horror':/comedy/i.test(subject)?'Comedy':/western/i.test(subject)?'Western':/documentary/i.test(subject)?'Documentary':/animation|cartoon/i.test(subject)?'Animation':kind==='series'?'Classic TV':'Classic Film';
+    return {
+      id:'sandbox_archive_'+id,
+      type:kind==='series'?'series':'movie',
+      title,year:yr,rating:'NR',genre,quality:'Archive',
+      description:String(Array.isArray(d.description)?d.description[0]:d.description||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(),
+      art:'https://archive.org/services/img/'+encodeURIComponent(id),
+      backdrop:'https://archive.org/services/img/'+encodeURIComponent(id),
+      archiveId:id,openSource:true,sourceName:'Internet Archive',
+      publishedAt:String(d.date||''),
+      downloads:Number(d.downloads||0),
+      priority:25-i
+    };
+  }).filter(x=>x.archiveId);
+}
+function sandboxSeriesKey(title=''){
+  return normalizeTitle(String(title)
+    .replace(/\b(full episode|episode\s*\d+|s\d+\s*e\d+|season\s*\d+).*$/i,'')
+    .replace(/[-:|]+$/,'').trim());
+}
+function sandboxGroupPublisherSeries(items=[]){
+  const groups=new Map();
+  for(const item of items){
+    const key=sandboxSeriesKey(item.title)||normalizeTitle(item.publisher||'Series');
+    if(!groups.has(key))groups.set(key,{
+      id:'sandbox_series_'+slug(key||item.title),
+      type:'series',
+      title:String(item.title||'Series').replace(/\b(full episode|episode\s*\d+|s\d+\s*e\d+).*$/i,'').replace(/[-:|]+$/,'').trim()||item.title,
+      year:item.year||'',
+      rating:'NR',
+      genre:'Television',
+      quality:'HD',
+      description:'Full episodes from '+(item.publisher||item.sourceName||'publisher')+'.',
+      art:item.art||'',backdrop:item.backdrop||item.art||'',
+      sourceName:item.publisher||item.sourceName||'Publisher',
+      publishedAt:item.publishedAt||'',
+      episodes:[]
+    });
+    const show=groups.get(key);
+    const m=String(item.title||'').match(/S(\d{1,2})\s*E(\d{1,3})/i)||String(item.title||'').match(/episode\s*(\d+)/i);
+    const season=m&&m.length>2?Number(m[1]):1;
+    const episode=m?Number(m[m.length-1]):show.episodes.length+1;
+    show.episodes.push({
+      id:item.id,num:episode,season,title:item.title,description:item.description||'',
+      art:item.art||'',youtubeId:item.youtubeId||'',publisherUrl:item.youtubeId?'https://www.youtube.com/watch?v='+item.youtubeId:''
+    });
+    if(String(item.publishedAt||'')>String(show.publishedAt||''))show.publishedAt=item.publishedAt;
+  }
+  return [...groups.values()].map(x=>({...x,episodes:x.episodes.sort((a,b)=>(a.season-b.season)||(a.num-b.num))}));
+}
+async function sandboxProviderPayload(){
+  const [publisherMovies,publisherEpisodes,archiveMovies,archiveSeries]=await Promise.all([
+    publisherVod('movie'),
+    publisherVod('series'),
+    sandboxArchiveVod('movie',96),
+    sandboxArchiveVod('series',96)
+  ]);
+  const groupedSeries=sandboxGroupPublisherSeries(publisherEpisodes);
+  const movies=[...publisherMovies,...archiveMovies]
+    .sort((a,b)=>String(b.publishedAt||'').localeCompare(String(a.publishedAt||'')));
+  const series=[...groupedSeries,...archiveSeries]
+    .sort((a,b)=>String(b.publishedAt||'').localeCompare(String(a.publishedAt||'')));
+  const live=db.channels.slice().sort((a,b)=>(Number(b.priority||0)-Number(a.priority||0))||String(a.name).localeCompare(String(b.name)));
+  return {
+    ok:true,
+    provider:{
+      id:'velora_sandbox',
+      name:'Velora Sandbox Provider',
+      type:'sandbox',
+      mode:'local-test',
+      description:'Public/open test provider contract for Velora client development.'
+    },
+    generatedAt:new Date().toISOString(),
+    counts:{live:live.length,movies:movies.length,series:series.length},
+    live,movies,series,
+    recentlyAdded:{
+      movies:movies.slice(0,24),
+      series:series.slice(0,24)
+    }
+  };
+}
+
 async function publisherVod(kind){
   const sources=VOD_PUBLISHER_CHANNELS.filter(x=>x.kind===kind);
   const parts=await Promise.all(sources.map(async src=>{
@@ -768,6 +867,9 @@ async function api(req,res){
 
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
   if(req.method==='GET'&&p==='/api/catalogue')return json(res,200,{ok:true,...publicSnapshot()});
+  if(req.method==='GET'&&p==='/api/sandbox/provider'){
+    try{return json(res,200,await sandboxProviderPayload())}catch(e){return json(res,502,{error:String(e.message||e)})}
+  }
   if(req.method==='GET'&&p==='/api/vod/publishers'){
     const kind=u.searchParams.get('kind')==='series'?'series':'movie';
     const items=await publisherVod(kind);
