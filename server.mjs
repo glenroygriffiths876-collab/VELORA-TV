@@ -121,6 +121,9 @@ async function bootstrapPublicFeeds(){
       console.error('Public feed sync failed:',provider.name,e.message);
     }
   }
+  upsertDirectOverrides();
+  console.log('Direct Jamaica overrides loaded:',PUBLIC_DIRECT_OVERRIDES.map(x=>x.name).join(', '));
+  console.log('Public bootstrap complete:',JSON.stringify(computeStats()));
 }
 
 
