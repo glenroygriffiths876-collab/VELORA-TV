@@ -32,11 +32,13 @@ jobs:
           node --check real-v6-media.js
           node --check real-v6-ui.js
           node --check real-v7-ingest.js
+          node --check real-v8-vod.js
           test -f index.html
           test -f styles.css
           test -f real-v5.css
           test -f real-v6.css
           test -f real-v7.css
+          test -f real-v8-vod.css
           test -f manifest.json
           curl -fsSL --retry 3 --max-time 20 "https://archive.org/advancedsearch.php?q=collection%3Afeature_films%20AND%20mediatype%3Amovies&fl%5B%5D=identifier&fl%5B%5D=title&rows=1&page=1&output=json" -o /tmp/archive-check.json
           python - <<'PY'
@@ -53,7 +55,7 @@ jobs:
           git fetch origin gh-pages
           git worktree add -B gh-pages /tmp/velora-site origin/gh-pages
           find /tmp/velora-site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp index.html app.js styles.css real-v5.css real-v5-data.js real-v5-home.js real-v5-live.js real-v5-runtime.js real-v6.css real-v6-media.js real-v6-ui.js real-v7.css real-v7-ingest.js manifest.json sw.js /tmp/velora-site/
+          cp index.html app.js styles.css real-v5.css real-v5-data.js real-v5-home.js real-v5-live.js real-v5-runtime.js real-v6.css real-v6-media.js real-v6-ui.js real-v7.css real-v7-ingest.js real-v8-vod.css real-v8-vod.js manifest.json sw.js /tmp/velora-site/
           cp demo-authorized-catalog.json demo-distributor-catalog.csv demo-authorized-playlist.m3u demo-epg.xml /tmp/velora-site/ 2>/dev/null || true
           touch /tmp/velora-site/.nojekyll
           cd /tmp/velora-site
@@ -61,7 +63,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No deployment changes."
           else
-            git commit -m "Deploy Velora Mass Ingest V7"
+            git commit -m "Deploy Velora In-App VOD V8"
             git pull --rebase origin gh-pages
             git push origin HEAD:gh-pages
           fi
