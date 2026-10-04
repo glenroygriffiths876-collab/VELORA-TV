@@ -26,13 +26,13 @@ const PUBLIC_DIRECT_OVERRIDES=[
     name:'CVM TV',
     group:'Jamaica',
     sourceName:'CVM TV Jamaica',
-    upstreamUrl:'https://fl5.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8',
+    upstreamUrls:['https://fl5.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8','https://fl1.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8'],
     territory:'WORLD',
     priority:95
   }
 ];
 
-function upsertDirectOverrides(){
+async function upsertDirectOverrides(){
   for(const o of PUBLIC_DIRECT_OVERRIDES){
     const providerId='public_direct';
     let provider=db.providers.find(p=>p.id===providerId);
@@ -50,6 +50,12 @@ function upsertDirectOverrides(){
       };
       db.providers.push(provider);
     }
+    let chosen=o.upstreamUrls?.[0]||o.upstreamUrl||'';
+    for(const candidate of (o.upstreamUrls||[o.upstreamUrl]).filter(Boolean)){
+      const h=await checkUrl(candidate);
+      console.log('Direct override probe:',o.name,candidate,h.status,h.httpStatus||'',h.latencyMs+'ms');
+      if(h.status==='up'){chosen=candidate;break}
+    }
     const item={
       id:o.id,
       epgId:o.epgId,
@@ -61,7 +67,7 @@ function upsertDirectOverrides(){
       access:'Velora direct stream',
       desc:o.name+' direct live stream',
       url:'/api/public/channel/'+o.id,
-      upstreamUrl:o.upstreamUrl,
+      upstreamUrl:chosen,
       sourceId:providerId,
       sourceName:o.sourceName,
       priority:o.priority,
@@ -70,7 +76,7 @@ function upsertDirectOverrides(){
         providerId,
         providerName:provider.name,
         kind:'m3u',
-        url:o.upstreamUrl,
+        url:chosen,
         priority:o.priority,
         territory:o.territory,
         health:'unknown',
