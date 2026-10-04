@@ -65,7 +65,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No deployment changes."
           else
-            git commit -m "Deploy Velora Provider Client V9"
+            git commit -m "Deploy Velora Unified Media Graph"
             git pull --rebase origin gh-pages
             git push origin HEAD:gh-pages
           fi
