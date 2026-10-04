@@ -1,5 +1,5 @@
-const CACHE='velora-shell-v5';
-const SHELL=['./','./index.html','./styles.css','./real-v5.css','./app.js','./real-v5-data.js','./real-v5-home.js','./real-v5-live.js','./real-v5-runtime.js','./manifest.json'];
+const CACHE='velora-shell-v6';
+const SHELL=['./','./index.html','./styles.css','./real-v5.css','./app.js','./real-v5-data.js','./real-v5-home.js','./real-v5-live.js','./real-v5-runtime.js','./real-v6.css','./real-v6-media.js','./real-v6-ui.js','./manifest.json'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
