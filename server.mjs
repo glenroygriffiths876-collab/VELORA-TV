@@ -18,6 +18,72 @@ const MAX_PLAYLIST_BYTES=Number(process.env.VELORA_MAX_PLAYLIST_BYTES||20*1024*1
 const HEALTH_CONCURRENCY=Math.max(1,Number(process.env.VELORA_HEALTH_CONCURRENCY||12));
 const PUBLIC_RELAY_KEY=crypto.createHash('sha256').update(process.env.VELORA_RELAY_KEY||('velora-public-relay-'+process.pid)).digest();
 
+
+const PUBLIC_DIRECT_OVERRIDES=[
+  {
+    id:'jm_cvm_direct',
+    epgId:'CVMTV.jm',
+    name:'CVM TV',
+    group:'Jamaica',
+    sourceName:'CVM TV Jamaica',
+    upstreamUrl:'https://fl5.moveonjoy.com/CVM_TV_CARIBBEAN/index.m3u8',
+    territory:'WORLD',
+    priority:95
+  }
+];
+
+function upsertDirectOverrides(){
+  for(const o of PUBLIC_DIRECT_OVERRIDES){
+    const providerId='public_direct';
+    let provider=db.providers.find(p=>p.id===providerId);
+    if(!provider){
+      provider={
+        id:providerId,
+        type:'direct-public',
+        name:'Velora Jamaica Direct',
+        territory:'WORLD',
+        priority:95,
+        enabled:true,
+        publicDirectory:true,
+        createdAt:new Date().toISOString(),
+        counts:{channels:0,movies:0,series:0}
+      };
+      db.providers.push(provider);
+    }
+    const item={
+      id:o.id,
+      epgId:o.epgId,
+      num:'302',
+      name:o.name,
+      group:o.group,
+      logo:'',
+      now:'Live',
+      access:'Velora direct stream',
+      desc:o.name+' direct live stream',
+      url:'/api/public/channel/'+o.id,
+      upstreamUrl:o.upstreamUrl,
+      sourceId:providerId,
+      sourceName:o.sourceName,
+      priority:o.priority,
+      territory:o.territory,
+      sources:[{
+        providerId,
+        providerName:provider.name,
+        kind:'m3u',
+        url:o.upstreamUrl,
+        priority:o.priority,
+        territory:o.territory,
+        health:'unknown',
+        lastChecked:null
+      }]
+    };
+    db.channels=db.channels.filter(x=>x.id!==o.id&&channelKey(x)!==channelKey(item));
+    db.channels.unshift(item);
+    provider.counts.channels=(provider.counts.channels||0)+1;
+  }
+  saveDB();
+}
+
 const PUBLIC_BOOTSTRAP_FEEDS=[
   {id:'public_us',name:'US Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/countries/us.m3u',territory:'WORLD',region:'USA',priority:45,refreshMinutes:1440},
   {id:'public_caribbean',name:'Caribbean Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/regions/carib.m3u',territory:'WORLD',region:'Caribbean',priority:55,refreshMinutes:1440},
