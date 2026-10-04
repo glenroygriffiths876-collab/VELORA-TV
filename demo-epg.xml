@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv>
+  <channel id="velora-one"><display-name>Velora One</display-name></channel>
+  <channel id="velora-news"><display-name>Velora News</display-name></channel>
+  <channel id="velora-sport"><display-name>Velora Sport</display-name></channel>
+  <programme start="20261004140000 -0500" stop="20261004150000 -0500" channel="velora-one"><title>Morning Live</title></programme>
+  <programme start="20261004150000 -0500" stop="20261004160000 -0500" channel="velora-one"><title>Island Life</title></programme>
+  <programme start="20261004140000 -0500" stop="20261004150000 -0500" channel="velora-news"><title>Newsroom Live</title></programme>
+  <programme start="20261004150000 -0500" stop="20261004160000 -0500" channel="velora-news"><title>World Report</title></programme>
+  <programme start="20261004140000 -0500" stop="20261004160000 -0500" channel="velora-sport"><title>Match Centre</title></programme>
+</tv>
