@@ -32,7 +32,7 @@ const PUBLIC_DIRECT_OVERRIDES=[
   }
 ];
 
-async function upsertDirectOverrides(){
+function upsertDirectOverrides(){
   for(const o of PUBLIC_DIRECT_OVERRIDES){
     const providerId='public_direct';
     let provider=db.providers.find(p=>p.id===providerId);
@@ -50,12 +50,7 @@ async function upsertDirectOverrides(){
       };
       db.providers.push(provider);
     }
-    let chosen=o.upstreamUrls?.[0]||o.upstreamUrl||'';
-    for(const candidate of (o.upstreamUrls||[o.upstreamUrl]).filter(Boolean)){
-      const h=await checkUrl(candidate);
-      console.log('Direct override probe:',o.name,candidate,h.status,h.httpStatus||'',h.latencyMs+'ms');
-      if(h.status==='up'){chosen=candidate;break}
-    }
+    const relayUrls=(o.upstreamUrls||[o.upstreamUrl]).filter(Boolean).map((_,i)=>'/api/public/fixed/'+encodeURIComponent(o.id)+'/'+i);
     const item={
       id:o.id,
       epgId:o.epgId,
@@ -66,22 +61,23 @@ async function upsertDirectOverrides(){
       now:'Live',
       access:'Velora direct stream',
       desc:o.name+' direct live stream',
-      url:'/api/public/channel/'+o.id,
-      upstreamUrl:chosen,
+      url:relayUrls[0]||'',
+      upstreamUrl:'',
       sourceId:providerId,
       sourceName:o.sourceName,
       priority:o.priority,
       territory:o.territory,
-      sources:[{
+      sources:relayUrls.map((url,i)=>({
         providerId,
         providerName:provider.name,
-        kind:'m3u',
-        url:chosen,
-        priority:o.priority,
+        kind:'relay',
+        url,
+        streamId:o.id+':'+i,
+        priority:o.priority-i,
         territory:o.territory,
         health:'unknown',
         lastChecked:null
-      }]
+      }))
     };
     db.channels=db.channels.filter(x=>x.id!==o.id&&channelKey(x)!==channelKey(item));
     db.channels.unshift(item);
@@ -89,7 +85,6 @@ async function upsertDirectOverrides(){
   }
   saveDB();
 }
-
 const PUBLIC_BOOTSTRAP_FEEDS=[
   {id:'public_us',name:'US Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/countries/us.m3u',territory:'WORLD',region:'USA',priority:45,refreshMinutes:1440},
   {id:'public_caribbean',name:'Caribbean Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/regions/carib.m3u',territory:'WORLD',region:'Caribbean',priority:55,refreshMinutes:1440},
@@ -619,6 +614,16 @@ async function api(req,res){
     const body=JSON.parse((await readBody(req).catch(()=>''))||'{}');
     const result=await healthScan({limit:Math.min(2000,Math.max(1,Number(body.limit||250)))});
     return json(res,200,{ok:true,...result,stats:computeStats()});
+  }
+
+  const fixedPublic=p.match(/^\/api\/public\/fixed\/([^/]+)\/(\d+)$/);
+  if(req.method==='GET'&&fixedPublic){
+    const id=decodeURIComponent(fixedPublic[1]);
+    const idx=Number(fixedPublic[2]||0);
+    const cfg=PUBLIC_DIRECT_OVERRIDES.find(x=>x.id===id);
+    const target=cfg?.upstreamUrls?.[idx]||cfg?.upstreamUrl||'';
+    if(!target)return json(res,404,{error:'Fixed public source not found'});
+    return relayPublicUrl(req,res,target);
   }
 
   const publicChannelMatch=p.match(/^\/api\/public\/channel\/([^/]+)$/);
