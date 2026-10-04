@@ -217,3 +217,39 @@ document.addEventListener('click',e=>{
 },true);
 
 if(state.user&&document.getElementById('view-admin')?.classList.contains('active'))renderAdmin();
+
+
+function v7LiveMatches(q=''){
+  const grp=state.currentFilter||'All',needle=String(q||'').toLowerCase();
+  return filteredChannels().filter(c=>(grp==='All'||c.group===grp)&&(!needle||(c.name+' '+(c.group||'')+' '+(c.now||'')+' '+(c.sourceName||'')).toLowerCase().includes(needle)));
+}
+drawChannelList=function(q=''){
+  const el=document.getElementById('channelList');if(!el)return;
+  const all=v7LiveMatches(q),limit=300,list=all.slice(0,limit);
+  el.innerHTML=list.map(c=>`<button class="channelRow ${state.currentChannel?.id===c.id?'active':''}" data-channel="${esc(c.id)}">
+    <span class="channelLogo textLogo">${esc(c.short||'TV')}</span>
+    <span><b>${esc(c.name)}</b><small>${esc(c.group||'')} • ${esc(c.official?'Official source':c.sourceName||'Public/connected feed')}</small></span>
+    <span class="channelNum">${esc(c.num||'')}</span>
+  </button>`).join('')+
+  (all.length>limit?`<div class="v7ListMore">Showing ${limit.toLocaleString()} of ${all.length.toLocaleString()} matches. Search or choose a category to narrow the list.</div>`:'');
+};
+drawGuide=function(){
+  const el=document.getElementById('guideBody');if(!el)return;
+  const all=filteredChannels(),list=all.slice(0,400);
+  el.innerHTML=`<div class="sourceGuideHead"><span>CHANNEL</span><span>NOW / ACCESS</span><span>SOURCE</span></div>`+
+    list.map(c=>`<button class="sourceGuideRow" data-channel="${esc(c.id)}">
+      <span><b>${esc(c.name)}</b><small>${esc(c.group||'')}</small></span>
+      <span><b>${esc(c.now||'Live')}</b><small>${esc(c.access||'Connected/public stream')}</small></span>
+      <span><b>${esc(c.sourceName||'Velora source')}</b><small>${c.official?'✓ Official':'Public / connected'}</small></span>
+    </button>`).join('')+
+    (all.length>list.length?`<div class="v7GuideMore">Guide preview shows ${list.length.toLocaleString()} of ${all.length.toLocaleString()} channels. Use the channel search and category filters for the complete catalogue.</div>`:'');
+};
+
+async function v7AutoHydrate(){
+  if(!state.user)return;
+  try{
+    const d=await v7Request('/api/catalogue',{headers:{}});
+    if((d.stats?.channels||0)>0||(d.stats?.vod||0)>0)v7ApplySnapshot(d);
+  }catch(e){console.warn('Velora backend catalogue unavailable',e)}
+}
+setTimeout(v7AutoHydrate,900);
