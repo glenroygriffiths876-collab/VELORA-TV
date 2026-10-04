@@ -3,7 +3,8 @@ const V9_CLIENT={
   ready:false,loading:false,error:'',
   provider:null,generatedAt:'',
   live:[],movies:[],series:[],
-  recentlyAdded:{movies:[],series:[]}
+  recentlyAdded:{movies:[],series:[]},
+  adapters:[]
 };
 const V9_DEVICE_ID_KEY='velora_client_device_id';
 const V9_MODE_KEY='velora_client_mode';
@@ -27,11 +28,11 @@ function v9MergeIntoState(){
   const mapped=v9AllVod().map(x=>({
     ...x,
     sourceId:'velora_sandbox',
-    sourceName:V9_CLIENT.provider?.name||'Velora Sandbox Provider',
+    sourceName:V9_CLIENT.provider?.name||'Velora Unified Provider',
     territory:'WORLD',
     priority:70,
     rights:{territories:['WORLD'],starts:'2020-01-01',ends:'2035-12-31'},
-    sources:[{sourceId:'velora_sandbox',sourceName:V9_CLIENT.provider?.name||'Velora Sandbox Provider',territory:'WORLD',priority:70}]
+    sources:[{sourceId:'velora_sandbox',sourceName:V9_CLIENT.provider?.name||'Velora Unified Provider',territory:'WORLD',priority:70}]
   }));
   state.catalog=[...mapped,...keep];
   persist();
@@ -41,13 +42,14 @@ async function v9LoadProvider(force=false){
   if(V9_CLIENT.ready&&!force)return;
   V9_CLIENT.loading=true;V9_CLIENT.error='';
   try{
-    const d=await v7Request('/api/sandbox/provider',{headers:{}});
+    const d=await v7Request('/api/provider/graph',{headers:{}});
     V9_CLIENT.provider=d.provider||null;
     V9_CLIENT.generatedAt=d.generatedAt||'';
     V9_CLIENT.live=d.live||[];
     V9_CLIENT.movies=d.movies||[];
     V9_CLIENT.series=d.series||[];
     V9_CLIENT.recentlyAdded=d.recentlyAdded||{movies:[],series:[]};
+    V9_CLIENT.adapters=d.adapters||[];
     V9_CLIENT.ready=true;
     v9MergeIntoState();
     renderAll();
@@ -90,10 +92,10 @@ function v9ProviderHero(){
   return `<section class="v9ProviderHero">
     <div><span class="heroEyebrow">PROVIDER CLIENT MODE</span><h1>One app. One provider contract.</h1>
       <p>Velora is now consuming a single provider-style feed for Live TV, Movies and Series. This sandbox uses public/open media so the client can be perfected without touching anyone else's account.</p>
-      <div class="meta"><span>${esc(p?.name||'Velora Sandbox Provider')}</span><span>${counts}</span><span>Device-local client</span></div>
+      <div class="meta"><span>${esc(p?.name||'Velora Unified Provider')}</span><span>${counts}</span><span>Device-local client</span></div>
       <div class="actions"><button class="primary" data-view="live">◉ Live TV</button><button class="ghost" data-view="movies">▶ Movies</button><button class="ghost" data-view="series">▤ Series</button></div>
     </div>
-    <div class="v9ProviderStatus"><i></i><b>Sandbox connected</b><small>${V9_CLIENT.generatedAt?'Updated '+new Date(V9_CLIENT.generatedAt).toLocaleTimeString():''}</small></div>
+    <div class="v9ProviderStatus"><i></i><b>Unified graph connected</b><small>${V9_CLIENT.generatedAt?'Updated '+new Date(V9_CLIENT.generatedAt).toLocaleTimeString():''}</small></div>
   </section>`;
 }
 const v9PriorRenderHome=renderHome;
@@ -115,7 +117,7 @@ function v9RenderMovies(query=''){
   const q=String(query||'').trim().toLowerCase();
   const items=V9_CLIENT.movies.filter(x=>!q||(x.title+' '+(x.genre||'')+' '+(x.description||'')).toLowerCase().includes(q));
   el.innerHTML=`<div class="contentPage v9LibraryPage">
-    <div class="pageHead"><div><span class="heroEyebrow">PROVIDER LIBRARY</span><h1>Movies</h1><p>${V9_CLIENT.movies.length.toLocaleString()} playable movie items from the connected sandbox provider contract.</p></div><span class="status"><i></i>${esc(V9_CLIENT.provider?.name||'Sandbox')}</span></div>
+    <div class="pageHead"><div><span class="heroEyebrow">PROVIDER LIBRARY</span><h1>Movies</h1><p>${V9_CLIENT.movies.length.toLocaleString()} playable movie items from the connected unified provider contract.</p></div><span class="status"><i></i>${esc(V9_CLIENT.provider?.name||'Sandbox')}</span></div>
     <div class="v9LibraryTools"><input id="v9MovieSearch" value="${esc(query)}" placeholder="Search movies…"><button class="ghost" data-v9-search-movies>Search</button></div>
     <div class="v9LibraryGrid">${items.map(v9VodCard).join('')}</div>
   </div>`;
@@ -198,10 +200,11 @@ renderAdmin=function(){
   const page=document.querySelector('#view-admin .contentPage');if(!page)return;
   const card=document.createElement('section');
   card.className='v9ClientPanel';
-  card.innerHTML=`<div><span class="heroEyebrow">PROVIDER CLIENT</span><h2>Sandbox Provider Connected</h2><p>This mode proves the Apollo-style client architecture without using anyone else's account. The provider contract supplies Live TV, Movies and Series to one unified client.</p></div>
-    <div class="v9ClientFacts"><span><b>${V9_CLIENT.live.length.toLocaleString()}</b> Live</span><span><b>${V9_CLIENT.movies.length.toLocaleString()}</b> Movies</span><span><b>${V9_CLIENT.series.length.toLocaleString()}</b> Series</span><span><b>Local</b> Device ID</span></div>
+  card.innerHTML=`<div><span class="heroEyebrow">PROVIDER CLIENT</span><h2>Unified Provider Graph Connected</h2><p>Velora now consumes one source-agnostic media graph. Public live TV, publisher VOD, archive VOD and any future connected provider all feed the same Movies, Series and Live TV client.</p></div>
+    <div class="v9ClientFacts"><span><b>${V9_CLIENT.live.length.toLocaleString()}</b> Live</span><span><b>${V9_CLIENT.movies.length.toLocaleString()}</b> Movies</span><span><b>${V9_CLIENT.series.length.toLocaleString()}</b> Series</span><span><b>${V9_CLIENT.adapters.length}</b> Adapters</span></div>
+    <div class="v9AdapterGrid">${V9_CLIENT.adapters.map(a=>`<div><b>${esc(a.name)}</b><small>${esc(a.kind)} • ${Number(a.items||0).toLocaleString()} items • ${esc(a.status)}</small></div>`).join('')}</div>
     <div class="v9ClientDevice"><small>Device client ID</small><code>${esc(v9DeviceId())}</code></div>
-    <button class="ghost" id="v9RefreshProvider">↻ Refresh sandbox provider</button>`;
+    <button class="ghost" id="v9RefreshProvider">↻ Refresh unified provider</button>`;
   page.prepend(card);
 };
 
@@ -216,7 +219,7 @@ document.addEventListener('click',e=>{
   if(ep){e.preventDefault();e.stopImmediatePropagation();const show=v9Find(ep.dataset.v9Episode);const episode=show?.episodes?.find(x=>x.id===ep.dataset.v9EpisodeId);closeDetails();v9PlayEpisode(show,episode);return}
   if(e.target.closest('[data-v9-search-movies]')){e.preventDefault();v9RenderMovies(document.getElementById('v9MovieSearch')?.value||'');return}
   if(e.target.closest('[data-v9-search-series]')){e.preventDefault();v9RenderSeries(document.getElementById('v9SeriesSearch')?.value||'');return}
-  if(e.target.id==='v9RefreshProvider'){e.preventDefault();V9_CLIENT.ready=false;v9LoadProvider(true).then(()=>renderAdmin());return}
+  if(e.target.id==='v9RefreshProvider'){e.preventDefault();V9_CLIENT.ready=false;v7Request('/api/provider/graph?refresh=1',{headers:{}}).catch(()=>{}).finally(()=>v9LoadProvider(true).then(()=>renderAdmin()));return}
 },true);
 
 document.addEventListener('keydown',e=>{
