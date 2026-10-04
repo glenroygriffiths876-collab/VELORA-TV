@@ -265,9 +265,8 @@ setTimeout(v7AutoHydrate,900);
 function v7IsPublicDirectoryItem(x){
   return String(x?.sourceId||'').startsWith('public_') || (x?.sources||[]).some(s=>String(s.sourceId||s.providerId||'').startsWith('public_'));
 }
-const V7_SESSION_DEAD=new Set();
-const V7_SESSION_DEAD_KEYS=new Set();
 let V7_SELECTION_TOKEN=0;
+let V7_RETRY_TIMER=null;
 const v7OriginalFilteredChannels=filteredChannels;
 function v7ChannelNameKey(x){
   return String(x?.name||'').toLowerCase()
@@ -276,13 +275,13 @@ function v7ChannelNameKey(x){
     .replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
 }
 filteredChannels=function(){
-  const bulk=state.channels.filter(x=>(v7IsPublicDirectoryItem(x)||rightsActive(x))&&!V7_SESSION_DEAD.has(x.id)&&!V7_SESSION_DEAD_KEYS.has(v7ChannelNameKey(x)));
+  const bulk=state.channels.filter(x=>v7IsPublicDirectoryItem(x)||rightsActive(x));
   const directKeys=new Set(bulk.map(v7ChannelNameKey).filter(Boolean));
-  const fallbackOfficial=V5_OFFICIAL_CHANNELS.filter(x=>!directKeys.has(v7ChannelNameKey(x))&&!V7_SESSION_DEAD_KEYS.has(v7ChannelNameKey(x)));
+  const fallbackOfficial=V5_OFFICIAL_CHANNELS.filter(x=>!directKeys.has(v7ChannelNameKey(x)));
   const all=[...bulk,...fallbackOfficial],seen=new Set();
   return all.filter(x=>{
     const k=v7ChannelNameKey(x)||String(x.epgId||x.id).toLowerCase();
-    if(seen.has(k)||V7_SESSION_DEAD_KEYS.has(k))return false;
+    if(seen.has(k))return false;
     seen.add(k);return true;
   });
 };
@@ -358,31 +357,32 @@ function v7ShowLiveStatus(c,title,message,busy=false){
     ${busy?'<div class="v7MiniSpinner"></div>':''}
   </div>`;
 }
-function v7RetireAndAdvance(c){
-  if(!c)return;
-  V7_SESSION_DEAD.add(c.id);
-  V7_SESSION_DEAD_KEYS.add(v7ChannelNameKey(c));
+function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
+  if(!c||token!==V7_SELECTION_TOKEN)return;
+  clearTimeout(V7_RETRY_TIMER);
   v7ResetInline();
-  drawChannelList(document.getElementById('channelSearch')?.value||'');
-  drawGuide();
-  const all=filteredChannels();
-  const next=all.find(x=>x.group===c.group)||all[0];
-  if(next){
-    v7ShowLiveStatus(next,'Switching channel','Finding a working live source…',true);
-    setTimeout(()=>selectChannel(next.id,true),120);
-  }else{
-    v7ShowLiveStatus(c,'Refreshing Live TV','Refreshing the live guide for active sources…',true);
-    setTimeout(async()=>{
-      try{await v7LoadSnapshot(false)}catch{}
-      const fresh=filteredChannels()[0];
-      if(fresh)selectChannel(fresh.id,true);
-    },1200);
-  }
+  v7ShowLiveStatus(c,c.name,'Velora is searching for another live source…',true);
+  V7_RETRY_TIMER=setTimeout(async()=>{
+    if(token!==V7_SELECTION_TOKEN)return;
+    const urls=await v7ResolveCandidates(c);
+    if(token!==V7_SELECTION_TOKEN)return;
+    if(urls.length)return v7PlayLiveDirect(c,urls,true,0,token);
+
+    // Refresh the backend snapshot as well, in case a new upstream appeared.
+    try{await v7LoadSnapshot(false)}catch{}
+    if(token!==V7_SELECTION_TOKEN)return;
+    const refreshed=filteredChannels().find(x=>v7ChannelNameKey(x)===v7ChannelNameKey(c))||c;
+    const retryUrls=await v7ResolveCandidates(refreshed);
+    if(token!==V7_SELECTION_TOKEN)return;
+    if(retryUrls.length)return v7PlayLiveDirect(refreshed,retryUrls,true,0,token);
+
+    return v7KeepSearching(refreshed,token);
+  },6500);
 }
 function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN){
   if(token!==V7_SELECTION_TOKEN)return;
   const url=urls[index];
-  if(!url)return v7RetireAndAdvance(c);
+  if(!url)return v7KeepSearching(c,token);
 
   v7ResetInline();
   v7ShowLiveStatus(c,c.name,index?'Switching to another live source…':'Starting live stream…',true);
@@ -406,7 +406,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
     if(index+1<urls.length){
       setTimeout(()=>v7PlayLiveDirect(c,urls,autoplay,index+1,token),80);
     }else{
-      v7RetireAndAdvance(c);
+      v7KeepSearching(c,token);
     }
   };
 
@@ -429,6 +429,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
 selectChannel=async function(id,autoplay=true){
   const c=filteredChannels().find(x=>x.id===id);if(!c)return;
   const token=++V7_SELECTION_TOKEN;
+  clearTimeout(V7_RETRY_TIMER);
   state.currentChannel=c;
   drawChannelList(document.getElementById('channelSearch')?.value||'');
 
@@ -448,7 +449,7 @@ selectChannel=async function(id,autoplay=true){
     const yt=v6YoutubeFromEmbed(c.embedUrl);
     if(yt)return v6PlayYouTube({title:c.name,...yt,publisherUrl:c.watchUrl||''});
   }
-  v7RetireAndAdvance(c);
+  v7KeepSearching(c,token);
 };
 v5OpenChannel=function(c,full=false){
   if(!c)return;
@@ -464,13 +465,13 @@ v5OpenChannel=function(c,full=false){
 };
 
 // Never leave a live-TV viewer on the V6 provider error surface.
-// If an embed fails, retire that live entry and move to the next working source.
+// If an embed fails, keep that channel selected and continue searching for another source.
 if(typeof v6Fail==='function'){
   const v7OriginalV6Fail=v6Fail;
   v6Fail=function(title,message,publisherUrl){
     const liveActive=document.getElementById('view-live')?.classList.contains('active');
     if(liveActive&&state.currentChannel){
-      return v7RetireAndAdvance(state.currentChannel);
+      return v7KeepSearching(state.currentChannel,V7_SELECTION_TOKEN);
     }
     return v7OriginalV6Fail(title,message,publisherUrl);
   };
