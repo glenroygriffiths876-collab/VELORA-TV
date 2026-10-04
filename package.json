@@ -1,0 +1,13 @@
+{
+  "name": "velora-tv",
+  "version": "7.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check app.js && node --check real-v5-data.js && node --check real-v5-home.js && node --check real-v5-live.js && node --check real-v5-runtime.js && node --check real-v6-media.js && node --check real-v6-ui.js && node --check real-v7-ingest.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
