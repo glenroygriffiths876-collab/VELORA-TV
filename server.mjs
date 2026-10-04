@@ -8,7 +8,7 @@ import { URL } from 'node:url';
 const PORT=Number(process.env.PORT||8094);
 const HOST=process.env.HOST||'0.0.0.0';
 const ROOT=process.cwd();
-const DATA_DIR=path.join(ROOT,'.velora-data');
+const DATA_DIR=process.env.VELORA_DATA_DIR||path.join(ROOT,'.velora-data');
 const DB_FILE=path.join(DATA_DIR,'catalogue.json');
 const MASTER_KEY=process.env.VELORA_MASTER_KEY||'';
 const DEFAULT_REFRESH_MINUTES=Number(process.env.VELORA_REFRESH_MINUTES||30);
@@ -382,6 +382,7 @@ function serveStatic(req,res){
   let rel=decodeURIComponent(u.pathname);
   if(rel==='/'||rel==='')rel='/index.html';
   const file=path.resolve(ROOT,'.'+rel);
+  if(rel.startsWith('/.velora-data')||rel==='/server.mjs'||rel.startsWith('/.env'))return text(res,404,'Not found');
   if(!file.startsWith(path.resolve(ROOT)))return text(res,403,'Forbidden');
   if(!fs.existsSync(file)||!fs.statSync(file).isFile())return text(res,404,'Not found');
   res.writeHead(200,{'content-type':mime(file),'cache-control':/\.(js|css)$/.test(file)?'no-cache':'no-store'});
