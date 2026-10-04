@@ -1,0 +1,18 @@
+/* Velora V8 — in-app VOD library */
+.v8VodPage{padding-bottom:36px}
+.v8VodHero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:26px;margin-bottom:16px;border-radius:24px;background:
+  radial-gradient(circle at 82% 10%,rgba(108,92,255,.25),transparent 35%),
+  radial-gradient(circle at 12% 8%,rgba(35,200,184,.16),transparent 35%),
+  linear-gradient(145deg,#141927,#0b0e16);border:1px solid #ffffff12}
+.v8VodHero h1{font-size:clamp(42px,6vw,72px);margin:6px 0 10px;letter-spacing:-.055em;line-height:.95}
+.v8VodHero p{max-width:760px;color:#a3adbf;line-height:1.5;margin:0}
+.v8VodCount{text-align:right;min-width:150px}.v8VodCount b{display:block;font-size:34px}.v8VodCount span{display:block;color:#7f899d;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.v8VodTools{display:flex;gap:9px;margin:14px 0}.v8VodTools input{flex:1;min-width:0}
+.v8SourceStrip{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}.v8SourceStrip span{padding:7px 10px;border-radius:999px;border:1px solid #ffffff10;background:#0e1119;color:#95a0b3;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.v8VodGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.v8VodCard{cursor:pointer;min-width:0}.v8VodArt{aspect-ratio:2/3;background-size:cover;background-position:center;border-radius:16px;position:relative;overflow:hidden;border:1px solid #ffffff10;box-shadow:0 14px 34px #0005}.v8VodCard b{display:block;margin-top:8px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v8VodCard small{display:block;color:#8b95a8;font-size:10px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v8VodArt .badge{position:absolute;left:9px;top:9px;z-index:2}.v8Play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:#f4f6fb;color:#080a0e;box-shadow:0 12px 30px #0008;opacity:.94}.v8VodCard:hover .v8Play{transform:translate(-50%,-50%) scale(1.08)}
+.v8HomePlayable{margin-top:4px}
+@media(max-width:1100px){.v8VodGrid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:820px){.v8VodGrid{grid-template-columns:repeat(3,1fr)}.v8VodHero{align-items:flex-start;flex-direction:column}.v8VodCount{text-align:left}}
+@media(max-width:560px){.v8VodGrid{grid-template-columns:repeat(2,1fr);gap:10px}.v8VodHero{padding:19px}.v8VodHero h1{font-size:44px}.v8VodTools{flex-direction:column}.v8VodCount b{font-size:28px}}
