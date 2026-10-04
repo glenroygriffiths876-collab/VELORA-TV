@@ -337,18 +337,27 @@ document.addEventListener('click',e=>{
 function v7LiveCandidates(c){
   const urls=[];
   const add=u=>{u=v7MediaUrl(u);if(u&&!urls.includes(u))urls.push(u)};
+  // Jamaica-first: when the backend marks a channel with clientUrls, try those
+  // directly from the viewer's network before the Railway relay.
+  for(const u of (c.clientUrls||[]))add(u);
   add(c.url);
   for(const src of (c.sources||[]))add(src.url);
   return urls;
 }
 async function v7ResolveCandidates(c){
+  const local=v7LiveCandidates(c);
   if(v7IsPublicDirectoryItem(c)){
     try{
       const d=await v7Request('/api/channel/'+encodeURIComponent(c.id)+'/resolve',{headers:{}});
-      return (d.urls||[]).map(v7MediaUrl).filter(Boolean);
-    }catch{return []}
+      const probed=(d.urls||[]).map(v7MediaUrl).filter(Boolean);
+      return [...new Set([...local,...probed])];
+    }catch{
+      // A US Railway probe can fail for a Jamaica-geo stream. Do not discard
+      // client-direct candidates just because the backend cannot see them.
+      return local;
+    }
   }
-  return v7LiveCandidates(c);
+  return local;
 }
 function v7ResetInline(){
   if(state.hls){try{state.hls.destroy()}catch{}state.hls=null}
@@ -454,7 +463,7 @@ selectChannel=async function(id,autoplay=true){
   if(fallback){fallback.hidden=!c.watchUrl;fallback.dataset.v5External=c.watchUrl||'';fallback.textContent='Publisher source ↗'}
 
   v7ResetInline();
-  v7ShowLiveStatus(c,c.name,'Finding the best live source…',true);
+  v7ShowLiveStatus(c,c.name,'Finding the best live source for your connection…',true);
 
   const urls=await v7ResolveCandidates(c);
   if(token!==V7_SELECTION_TOKEN)return;
