@@ -183,6 +183,73 @@ async function sandboxProviderPayload(){
   };
 }
 
+
+let MEDIA_GRAPH_CACHE={at:0,payload:null};
+function graphSource(item,fallbackName='Velora Source'){
+  return {
+    id:item.sourceId||item.providerId||slug(item.sourceName||fallbackName)||'source',
+    name:item.sourceName||item.publisher||fallbackName,
+    kind:item.youtubeId?'publisher-video':item.archiveId?'archive':item.type||'media',
+    priority:Number(item.priority||50),
+    playable:!!(item.youtubeId||item.archiveId||item.url||item.episodes?.length)
+  };
+}
+function graphMerge(items,type){
+  const map=new Map();
+  for(const raw of items||[]){
+    if(!raw)return;
+    const item={...raw,type:raw.type||type};
+    const key=catalogKey(item);
+    const src=graphSource(item);
+    const existing=map.get(key);
+    if(!existing){
+      map.set(key,{...item,sourcesGraph:[src]});
+      continue;
+    }
+    existing.sourcesGraph=[...(existing.sourcesGraph||[]),src]
+      .filter((x,i,a)=>a.findIndex(y=>y.id===x.id&&y.kind===x.kind)===i)
+      .sort((a,b)=>b.priority-a.priority);
+    if(Number(item.priority||0)>Number(existing.priority||0)){
+      const keepSources=existing.sourcesGraph;
+      Object.assign(existing,item,{sourcesGraph:keepSources});
+    }
+  }
+  return [...map.values()];
+}
+async function buildUnifiedMediaGraph(force=false){
+  if(!force&&MEDIA_GRAPH_CACHE.payload&&Date.now()-MEDIA_GRAPH_CACHE.at<10*60*1000)return MEDIA_GRAPH_CACHE.payload;
+  const sandbox=await sandboxProviderPayload();
+  const connectedMovies=db.catalog.filter(x=>x.type==='movie');
+  const connectedSeries=db.catalog.filter(x=>x.type==='series');
+  const movies=graphMerge([...sandbox.movies,...connectedMovies],'movie')
+    .sort((a,b)=>String(b.publishedAt||b.year||'').localeCompare(String(a.publishedAt||a.year||'')));
+  const series=graphMerge([...sandbox.series,...connectedSeries],'series')
+    .sort((a,b)=>String(b.publishedAt||b.year||'').localeCompare(String(a.publishedAt||a.year||'')));
+  const live=db.channels.slice().sort((a,b)=>(Number(b.priority||0)-Number(a.priority||0))||String(a.name).localeCompare(String(b.name)));
+  const payload={
+    ok:true,
+    provider:{
+      id:'velora_unified',
+      name:'Velora Unified Provider',
+      type:'media-graph',
+      mode:'source-agnostic',
+      description:'One normalized catalogue assembled from every active Velora adapter.'
+    },
+    adapters:[
+      {id:'public-live',name:'Public Live TV',kind:'live',status:'active',items:live.length},
+      {id:'publisher-vod',name:'Publisher Full Movies & Episodes',kind:'vod',status:'active',items:(await publisherVod('movie')).length+(await publisherVod('series')).length},
+      {id:'archive-vod',name:'Open Film & Classic TV Archive',kind:'vod',status:'active',items:sandbox.movies.filter(x=>x.archiveId).length+sandbox.series.filter(x=>x.archiveId).length},
+      {id:'connected-providers',name:'Connected Provider Feeds',kind:'provider',status:db.catalog.length?'active':'ready',items:db.catalog.length}
+    ],
+    generatedAt:new Date().toISOString(),
+    counts:{live:live.length,movies:movies.length,series:series.length,sources:movies.reduce((n,x)=>n+(x.sourcesGraph?.length||1),0)+series.reduce((n,x)=>n+(x.sourcesGraph?.length||1),0)},
+    live,movies,series,
+    recentlyAdded:{movies:movies.slice(0,30),series:series.slice(0,30)}
+  };
+  MEDIA_GRAPH_CACHE={at:Date.now(),payload};
+  return payload;
+}
+
 async function publisherVod(kind){
   const sources=VOD_PUBLISHER_CHANNELS.filter(x=>x.kind===kind);
   const parts=await Promise.all(sources.map(async src=>{
@@ -867,8 +934,11 @@ async function api(req,res){
 
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
   if(req.method==='GET'&&p==='/api/catalogue')return json(res,200,{ok:true,...publicSnapshot()});
+  if(req.method==='GET'&&p==='/api/provider/graph'){
+    try{return json(res,200,await buildUnifiedMediaGraph(u.searchParams.get('refresh')==='1'))}catch(e){return json(res,502,{error:String(e.message||e)})}
+  }
   if(req.method==='GET'&&p==='/api/sandbox/provider'){
-    try{return json(res,200,await sandboxProviderPayload())}catch(e){return json(res,502,{error:String(e.message||e)})}
+    try{return json(res,200,await buildUnifiedMediaGraph(false))}catch(e){return json(res,502,{error:String(e.message||e)})}
   }
   if(req.method==='GET'&&p==='/api/vod/publishers'){
     const kind=u.searchParams.get('kind')==='series'?'series':'movie';
