@@ -275,7 +275,22 @@ function v7ChannelNameKey(x){
     .replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
 }
 filteredChannels=function(){
-  const bulk=state.channels.filter(x=>v7IsPublicDirectoryItem(x)||rightsActive(x));
+  const officialByKey=new Map(V5_OFFICIAL_CHANNELS.map(x=>[v7ChannelNameKey(x),x]));
+  const bulk=state.channels
+    .filter(x=>v7IsPublicDirectoryItem(x)||rightsActive(x))
+    .map(x=>{
+      const off=officialByKey.get(v7ChannelNameKey(x));
+      if(!off)return x;
+      return {
+        ...off,
+        ...x,
+        embedUrl:x.embedUrl||off.embedUrl||'',
+        watchUrl:x.watchUrl||off.watchUrl||'',
+        desc:x.desc||off.desc||'',
+        official:true,
+        fallbackOfficial:off
+      };
+    });
   const directKeys=new Set(bulk.map(v7ChannelNameKey).filter(Boolean));
   const fallbackOfficial=V5_OFFICIAL_CHANNELS.filter(x=>!directKeys.has(v7ChannelNameKey(x)));
   const all=[...bulk,...fallbackOfficial],seen=new Set();
