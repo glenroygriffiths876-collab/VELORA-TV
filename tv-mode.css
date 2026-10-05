@@ -1,0 +1,54 @@
+/* Velora TV Mode — only active when ?tv=1 is present. Normal phone/tablet/desktop layouts are untouched. */
+html.tvMode,body.tvMode{min-height:100%;background:#05060a}
+body.tvMode{overscroll-behavior:none}
+body.tvMode .installAppBtn,
+body.tvMode .installModal,
+body.tvMode .mobileNav{display:none!important}
+body.tvMode .topbar{min-height:82px;padding:14px 34px;gap:24px}
+body.tvMode .brand{font-size:21px}
+body.tvMode .mainnav{gap:7px;overflow:visible;flex-wrap:wrap}
+body.tvMode .mainnav button{min-height:45px;padding:0 15px;font-size:13px}
+body.tvMode .topActions button{min-height:45px}
+body.tvMode main{padding-bottom:42px}
+body.tvMode .contentPage{padding-left:34px;padding-right:34px}
+body.tvMode .railSection{scroll-margin-top:96px}
+body.tvMode button,
+body.tvMode [tabindex="0"],
+body.tvMode .card,
+body.tvMode .v6MovieCard,
+body.tvMode .v6ChannelCard{outline:none}
+body.tvMode button:focus-visible,
+body.tvMode [tabindex="0"]:focus-visible,
+body.tvMode .card.tvFocus,
+body.tvMode .v6MovieCard.tvFocus,
+body.tvMode .v6ChannelCard.tvFocus{
+  position:relative;
+  z-index:8;
+  outline:4px solid #fff!important;
+  outline-offset:4px;
+  box-shadow:0 0 0 8px rgba(108,92,255,.72),0 18px 42px rgba(0,0,0,.6)!important;
+  transform:scale(1.045);
+}
+body.tvMode input:focus-visible,
+body.tvMode select:focus-visible,
+body.tvMode textarea:focus-visible{
+  outline:4px solid #fff!important;
+  outline-offset:3px;
+  box-shadow:0 0 0 7px rgba(108,92,255,.68)!important;
+}
+body.tvMode .playerOverlay .circleBtn:focus-visible,
+body.tvMode .v6PlayerShell button:focus-visible{transform:scale(1.12)}
+body.tvMode .profileMenu{z-index:280}
+body.tvMode .loginCard{max-width:520px}
+body.tvMode .loginCard button,
+body.tvMode .loginCard input{min-height:54px;font-size:16px}
+body.tvMode .v6PlayerTop{padding:14px 24px}
+body.tvMode .v6PlayerTop b{font-size:17px}
+body.tvMode .guideBody button,
+body.tvMode .channelList button{min-height:54px}
+@media (min-width:1600px){
+  body.tvMode{font-size:18px}
+  body.tvMode .topbar{min-height:96px;padding-left:52px;padding-right:52px}
+  body.tvMode .mainnav button{min-height:52px;font-size:15px;padding:0 19px}
+  body.tvMode .contentPage{padding-left:52px;padding-right:52px}
+}
