@@ -13,6 +13,7 @@ const DB_FILE=path.join(DATA_DIR,'catalogue.json');
 const MEDIA_GRAPH_FILE=path.join(DATA_DIR,'media-graph.json');
 const AUTH_FILE=path.join(DATA_DIR,'auth.json');
 const AUTH_ADMIN_EMAIL=String(process.env.VELORA_ADMIN_EMAIL||'').trim().toLowerCase();
+const AUTH_ADMIN_USERNAME=String(process.env.VELORA_ADMIN_USERNAME||'').trim().toLowerCase();
 const AUTH_ADMIN_PASSWORD=String(process.env.VELORA_ADMIN_PASSWORD||'');
 const AUTH_ADMIN_NAME=String(process.env.VELORA_ADMIN_NAME||'VELORA Owner').trim();
 const AUTH_SESSION_DAYS=Math.max(1,Number(process.env.VELORA_SESSION_DAYS||30));
@@ -465,23 +466,32 @@ function passwordMatches(password,user){
 }
 function publicUser(user){
   if(!user)return null;
-  return {id:user.id,name:user.name,email:user.email,role:user.role||'user',createdAt:user.createdAt,lastLogin:user.lastLogin||null,lastSeen:user.lastSeen||null};
+  return {id:user.id,name:user.name,email:user.email||'',username:user.username||'',role:user.role||'user',createdAt:user.createdAt,lastLogin:user.lastLogin||null,lastSeen:user.lastSeen||null};
 }
 function bootstrapAdmin(){
-  if(!AUTH_ADMIN_EMAIL||!AUTH_ADMIN_PASSWORD)return;
-  const found=authDb.users.find(u=>u.email===AUTH_ADMIN_EMAIL);
+  if(!AUTH_ADMIN_PASSWORD||(!AUTH_ADMIN_USERNAME&&!AUTH_ADMIN_EMAIL))return;
+  let found=authDb.users.find(u=>u.role==='admin')||
+    authDb.users.find(u=>AUTH_ADMIN_USERNAME&&u.username===AUTH_ADMIN_USERNAME)||
+    authDb.users.find(u=>AUTH_ADMIN_EMAIL&&u.email===AUTH_ADMIN_EMAIL);
+  const rec=passwordRecord(AUTH_ADMIN_PASSWORD);
   if(found){
-    if(found.role!=='admin'){found.role='admin';saveAuth()}
+    found.name=AUTH_ADMIN_NAME||found.name||'VELORA Owner';
+    found.role='admin';
+    if(AUTH_ADMIN_USERNAME)found.username=AUTH_ADMIN_USERNAME;
+    if(AUTH_ADMIN_EMAIL)found.email=AUTH_ADMIN_EMAIL;
+    found.passwordSalt=rec.salt;
+    found.passwordHash=rec.hash;
+    saveAuth();
+    console.log('VELORA owner account updated:',found.username||found.email);
     return;
   }
-  const rec=passwordRecord(AUTH_ADMIN_PASSWORD);
   authDb.users.push({
-    id:uid('usr'),name:AUTH_ADMIN_NAME||'VELORA Owner',email:AUTH_ADMIN_EMAIL,role:'admin',
+    id:uid('usr'),name:AUTH_ADMIN_NAME||'VELORA Owner',email:AUTH_ADMIN_EMAIL||'',username:AUTH_ADMIN_USERNAME||'',role:'admin',
     passwordSalt:rec.salt,passwordHash:rec.hash,createdAt:new Date().toISOString(),
     lastLogin:null,lastSeen:null
   });
   saveAuth();
-  console.log('VELORA owner account bootstrapped:',AUTH_ADMIN_EMAIL);
+  console.log('VELORA owner account bootstrapped:',AUTH_ADMIN_USERNAME||AUTH_ADMIN_EMAIL);
 }
 function bearer(req){
   const h=String(req.headers.authorization||'');
@@ -1078,9 +1088,9 @@ async function api(req,res){
   }
   if(req.method==='POST'&&p==='/api/auth/login'){
     let b={};try{b=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid request'})}
-    const email=String(b.email||'').trim().toLowerCase();
-    const user=authDb.users.find(x=>x.email===email);
-    if(!user||!passwordMatches(String(b.password||''),user))return json(res,401,{error:'Incorrect email or password'});
+    const identifier=String(b.identifier||b.email||'').trim().toLowerCase();
+    const user=authDb.users.find(x=>String(x.email||'').toLowerCase()===identifier||String(x.username||'').toLowerCase()===identifier);
+    if(!user||!passwordMatches(String(b.password||''),user))return json(res,401,{error:'Incorrect username/email or password'});
     const token=issueSession(user,b.deviceId,b.platform);
     recordEvent(req,user,{...b,event:'session_start'});
     return json(res,200,{ok:true,token,user:publicUser(user)});
