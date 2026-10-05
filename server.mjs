@@ -25,7 +25,9 @@ const VOD_PUBLISHER_CHANNELS=[
   {id:'indie-rights',name:'Indie Rights Movies For Free',channelId:'UCJuyiB0GT9-q92gC_M3XLpg',kind:'movie'},
   {id:'movie-central',name:'Movie Central',channelId:'UCGBzBkV-MinlBvHBzZawfLQ',kind:'movie'},
   {id:'maverick-movies',name:'Maverick Movies',channelId:'UC2u3R3pjOiPZu4LtTlKkxdw',kind:'movie'},
-  {id:'filmrise-television',name:'FilmRise Television',channelId:'UCVVXDVee0JZ2dlPYtpdTZVg',kind:'series'}
+  {id:'popcornflix',name:'Popcornflix',channelId:'UCVFYikepF-avelvuIaQ_lHA',kind:'movie',acceptAll:true},
+  {id:'filmrise-television',name:'FilmRise Television',channelId:'UCVVXDVee0JZ2dlPYtpdTZVg',kind:'series'},
+  {id:'filmrise-true-crime',name:'FilmRise True Crime',channelId:'UCU4BHh9Dwfd7-I_xTZ5037Q',kind:'series'}
 ];
 const VOD_PUBLISHER_CACHE=new Map();
 
@@ -43,10 +45,11 @@ function xmlAttr(block,tag,attr){
   const m=block.match(new RegExp('<'+tag+'[^>]*\\s'+attr+'="([^"]+)"','i'));
   return m?decodeXmlText(m[1]).trim():'';
 }
-function publisherEntryLooksPlayable(title,kind){
+function publisherEntryLooksPlayable(title,src){
   const t=String(title||'').toLowerCase();
-  if(/trailer|teaser|clip|shorts?|behind the scenes|interview|preview/.test(t))return false;
-  if(kind==='series')return /full episode|episode\s*\d|s\d+\s*e\d+|season\s*\d/.test(t);
+  if(/trailer|teaser|\bclip\b|\bshorts?\b|behind the scenes|interview|preview/.test(t))return false;
+  if(src.acceptAll)return true;
+  if(src.kind==='series')return /full episode|full season|full movie|full documentary|episode\s*\d|s\d+\s*e\d+|season\s*\d|anthology series/.test(t);
   return /full movie|full film|movie\b|film\b/.test(t);
 }
 async function fetchPublisherFeed(src){
@@ -60,7 +63,7 @@ async function fetchPublisherFeed(src){
     const title=xmlTag(entry,'title');
     const published=xmlTag(entry,'published');
     const art=xmlAttr(entry,'media:thumbnail','url')||('https://i.ytimg.com/vi/'+videoId+'/hq720.jpg');
-    if(!videoId||!title||!publisherEntryLooksPlayable(title,src.kind))return null;
+    if(!videoId||!title||!publisherEntryLooksPlayable(title,src))return null;
     const yr=(title.match(/\b(20\d{2}|19\d{2})\b/)||[])[0]||String(published||'').slice(0,4);
     return {
       id:'pub_'+src.id+'_'+videoId,
