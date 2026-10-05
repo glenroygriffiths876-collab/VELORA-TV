@@ -35,7 +35,8 @@ jobs:
           node --check real-v8-vod.js
           node --check real-v9-client.js
           node --check real-v10-provider-preview.js
-          node --check install.js\n          node --check tv-mode.js
+          node --check install.js
+          node --check tv-mode.js
           test -f index.html
           test -f styles.css
           test -f real-v5.css
@@ -44,7 +45,8 @@ jobs:
           test -f real-v8-vod.css
           test -f real-v9-client.css
           test -f real-v10-provider-preview.css
-          test -f install.css\n          test -f tv-mode.css
+          test -f install.css
+          test -f tv-mode.css
           test -f icons/icon.svg
           test -f icons/icon-192.png
           test -f icons/icon-180.png
