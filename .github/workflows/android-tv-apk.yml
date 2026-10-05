@@ -40,3 +40,22 @@ jobs:
           name: Velora-TV-Android-debug
           path: android-tv/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish APK to VELORA site
+        working-directory: .
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git worktree add -B gh-pages /tmp/velora-apk-site origin/gh-pages
+          mkdir -p /tmp/velora-apk-site/downloads
+          cp android-tv/app/build/outputs/apk/debug/app-debug.apk /tmp/velora-apk-site/downloads/VELORA-TV.apk
+          cd /tmp/velora-apk-site
+          git add downloads/VELORA-TV.apk
+          if git diff --cached --quiet; then
+            echo "APK unchanged."
+          else
+            git commit -m "Publish latest VELORA Android TV APK"
+            git pull --rebase origin gh-pages
+            git push origin HEAD:gh-pages
+          fi
