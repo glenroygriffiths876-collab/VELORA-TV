@@ -10,7 +10,8 @@ function v7Api(path){
   return (base||location.origin)+path;
 }
 async function v7Request(path,options={}){
-  const r=await fetch(v7Api(path),{...options,headers:{'content-type':'application/json',...(options.headers||{})}});
+  const token=localStorage.getItem('velora_auth_token')||'';
+  const r=await fetch(v7Api(path),{...options,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{}),...(options.headers||{})}});
   const ct=r.headers.get('content-type')||'';
   const body=ct.includes('application/json')?await r.json():{error:await r.text()};
   if(!r.ok)throw new Error(body.error||('HTTP '+r.status));
