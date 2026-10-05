@@ -1,0 +1,20 @@
+/* VELORA account, tester-profile and admin-usage UI */
+.authCard form{display:flex;flex-direction:column;gap:12px}
+.authCard form.hidden{display:none!important}
+.authEyebrow{font-size:10px;font-weight:900;letter-spacing:.16em;color:#64ded4;margin-top:8px}
+.authHint{display:block;color:#7f899b!important;line-height:1.45;text-align:center;margin-top:2px}
+.usagePanel{grid-column:1/-1}
+.usageHead{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.usageHead h2{margin:3px 0 5px}
+.usageHead p{margin:0;color:#929caf}
+.usageStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}
+.usageStats>div{padding:15px;border:1px solid #ffffff10;border-radius:15px;background:#ffffff06}
+.usageStats b{display:block;font-size:27px}.usageStats span{display:block;color:#8f99aa;font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+.usageTableWrap{overflow:auto;border:1px solid #ffffff10;border-radius:15px}
+.usageTable{width:100%;border-collapse:collapse;min-width:790px}
+.usageTable th,.usageTable td{padding:12px 13px;text-align:left;border-bottom:1px solid #ffffff0c;font-size:12px}
+.usageTable th{color:#7f899b;font-size:9px;text-transform:uppercase;letter-spacing:.1em;background:#ffffff04}
+.usageTable td b,.usageTable td small{display:block}.usageTable td small{color:#778196;margin-top:3px}
+.usageOnline{display:inline-block;margin-top:5px;padding:3px 6px;border-radius:999px;background:#2bd5b322;color:#5ce7c9;font-size:8px;font-style:normal;font-weight:900;text-transform:uppercase}
+.usagePrivacy{font-size:10px!important;color:#70798b!important;margin-top:11px!important}
+@media(max-width:720px){.usageStats{grid-template-columns:repeat(2,1fr)}.usageHead{flex-direction:column}.usageHead button{width:100%}}
