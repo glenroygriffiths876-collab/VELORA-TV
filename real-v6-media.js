@@ -61,6 +61,7 @@ function v6ClosePlayer(){
   document.body.style.overflow='';
 }
 function v6Fail(title='Source unavailable',message='This publisher did not provide an embeddable response right now.',publisherUrl=''){
+  v6CleanPlayer();
   const sh=document.getElementById('v6Shield');if(!sh)return;
   sh.classList.remove('playing');
   document.getElementById('v6ShieldTitle').textContent=title;
@@ -80,9 +81,17 @@ async function v6PlayYouTube(opts){
   try{await v6LoadYT()}catch{v6Fail('Player service unavailable','YouTube player services could not be reached. No broken embed is being shown.',opts.publisherUrl);return}
   const config={
     width:'100%',height:'100%',
-    playerVars:{autoplay:1,rel:0,modestbranding:1,playsinline:1,origin:location.origin},
+    playerVars:{autoplay:1,rel:0,playsinline:1,origin:location.origin},
     events:{
-      onReady:e=>{try{e.target.playVideo()}catch{}},
+      onReady:e=>{
+        clearTimeout(v6GuardTimer);
+        shield.classList.add('playing');
+        try{e.target.playVideo()}catch{}
+      },
+      onAutoplayBlocked:()=>{
+        clearTimeout(v6GuardTimer);
+        shield.classList.add('playing');
+      },
       onStateChange:e=>{
         if([YT.PlayerState.PLAYING,YT.PlayerState.PAUSED,YT.PlayerState.BUFFERING].includes(e.data)){
           clearTimeout(v6GuardTimer);shield.classList.add('playing');
@@ -99,7 +108,7 @@ async function v6PlayYouTube(opts){
   if(opts.videoId)config.videoId=opts.videoId;
   if(opts.playlistId){config.playerVars.listType='playlist';config.playerVars.list=opts.playlistId}
   v6Player=new YT.Player('v6YTMount',config);
-  v6GuardTimer=setTimeout(()=>{if(!shield.classList.contains('playing'))v6Fail('Source did not start','Velora stopped the player before a broken embed could become the viewing experience.',opts.publisherUrl)},9000);
+  v6GuardTimer=setTimeout(()=>{if(!shield.classList.contains('playing'))v6Fail('Source did not start','Velora stopped the player before a broken embed could become the viewing experience.',opts.publisherUrl)},12000);
 }
 function v6MovieCard(x){
   return `<article class="v6MovieCard" data-v6-movie="${esc(x.id)}"><div class="v6MovieArt" style="background-image:url('${esc(x.art)}')"><span class="badge">${esc(x.tag)}</span><span class="v6PlayDot">▶</span></div><b>${esc(x.title)}</b><small>${x.year?esc(x.year)+' • ':''}${esc(x.genre)}</small><em>${esc(x.publisher)}</em></article>`;
