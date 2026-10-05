@@ -1138,7 +1138,8 @@ async function api(req,res){
   }
   if(req.method==='GET'&&p==='/api/providers')return json(res,200,{ok:true,providers:db.providers.map(publicProvider)});
 
-  if(req.method==='POST'&&p==='/api/providers/xtream/connect'){\n    const admin=requireAdmin(req,res);if(!admin)return;
+  if(req.method==='POST'&&p==='/api/providers/xtream/connect'){
+    const admin=requireAdmin(req,res);if(!admin)return;
     const b=JSON.parse(await readBody(req));
     if(!b.serverUrl||!b.username||!b.password)return json(res,400,{error:'serverUrl, username and password are required'});
     const provider={
@@ -1157,7 +1158,8 @@ async function api(req,res){
     }
   }
 
-  if(req.method==='POST'&&p==='/api/providers/m3u/connect'){\n    const admin=requireAdmin(req,res);if(!admin)return;
+  if(req.method==='POST'&&p==='/api/providers/m3u/connect'){
+    const admin=requireAdmin(req,res);if(!admin)return;
     const b=JSON.parse(await readBody(req));
     if(!b.playlistUrl)return json(res,400,{error:'playlistUrl is required'});
     await assertSafeUrl(b.playlistUrl);
@@ -1168,23 +1170,27 @@ async function api(req,res){
   }
 
   const syncMatch=p.match(/^\/api\/providers\/([^/]+)\/sync$/);
-  if(req.method==='POST'&&syncMatch){\n    const admin=requireAdmin(req,res);if(!admin)return;
+  if(req.method==='POST'&&syncMatch){
+    const admin=requireAdmin(req,res);if(!admin)return;
     const provider=db.providers.find(x=>x.id===syncMatch[1]);if(!provider)return json(res,404,{error:'Provider not found'});
     try{const result=await syncProvider(provider);return json(res,200,{ok:true,provider:publicProvider(provider),channels:result.channels.length,catalog:result.catalog.length,stats:computeStats()})}
     catch(e){return json(res,502,{error:String(e.message||e)})}
   }
-  if(req.method==='POST'&&p==='/api/providers/sync-all'){\n    const admin=requireAdmin(req,res);if(!admin)return;
+  if(req.method==='POST'&&p==='/api/providers/sync-all'){
+    const admin=requireAdmin(req,res);if(!admin)return;
     const results=await syncAll();return json(res,200,{ok:true,results,stats:computeStats()});
   }
   const delMatch=p.match(/^\/api\/providers\/([^/]+)$/);
-  if(req.method==='DELETE'&&delMatch){\n    const admin=requireAdmin(req,res);if(!admin)return;
+  if(req.method==='DELETE'&&delMatch){
+    const admin=requireAdmin(req,res);if(!admin)return;
     const id=delMatch[1];db.providers=db.providers.filter(x=>x.id!==id);
     db.channels=db.channels.map(x=>({...x,sources:(x.sources||[]).filter(s=>s.providerId!==id)})).filter(x=>x.sources.length);
     db.catalog=db.catalog.map(x=>({...x,sources:(x.sources||[]).filter(s=>s.providerId!==id)})).filter(x=>x.sources.length);
     saveDB();return json(res,200,{ok:true,stats:computeStats()});
   }
 
-  if(req.method==='POST'&&p==='/api/health/scan'){\n    const admin=requireAdmin(req,res);if(!admin)return;
+  if(req.method==='POST'&&p==='/api/health/scan'){
+    const admin=requireAdmin(req,res);if(!admin)return;
     const body=JSON.parse((await readBody(req).catch(()=>''))||'{}');
     const result=await healthScan({limit:Math.min(2000,Math.max(1,Number(body.limit||250)))});
     return json(res,200,{ok:true,...result,stats:computeStats()});
