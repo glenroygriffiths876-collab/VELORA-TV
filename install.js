@@ -22,10 +22,10 @@
     const isAndroid = /Android/i.test(ua);
     const isSamsung = /SamsungBrowser/i.test(ua);
     const isFirefox = /Firefox|FxiOS/i.test(ua);
-    const isEdge = /Edg//i.test(ua);
+    const isEdge = /Edg\//i.test(ua);
     const isChrome = /Chrome|CriOS/i.test(ua) && !isEdge;
     const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Edg|Android/i.test(ua);
-    const isTV = /Android TV|GoogleTV|SMART-TV|SmartTV|Tizen|Web0S|webOS|NetCast|BRAVIA|AFT|FireTV|TV Safari/i.test(ua);
+    const isTV = /Android TV|GoogleTV|SMART-TV|SmartTV|Tizen|WebOS|webOS|NetCast|BRAVIA|AFT|FireTV|TV Safari/i.test(ua);
     const isMac = /Macintosh|Mac OS X/i.test(ua) && !isiOS;
     return {ua, isiOS, isAndroid, isSamsung, isFirefox, isEdge, isChrome, isSafari, isTV, isMac};
   }
