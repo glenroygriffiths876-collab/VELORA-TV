@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Velora TV">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#171145"/><stop offset=".48" stop-color="#07132d"/><stop offset="1" stop-color="#063548"/>
+  </linearGradient>
+  <linearGradient id="neon" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#b84dff"/><stop offset=".42" stop-color="#5666ff"/><stop offset="1" stop-color="#1ff5e3"/>
+  </linearGradient>
+  <linearGradient id="vgrad" x1=".1" y1=".15" x2=".9" y2=".9">
+    <stop offset="0" stop-color="#d75aff"/><stop offset=".42" stop-color="#5264ff"/><stop offset="1" stop-color="#1ff2e2"/>
+  </linearGradient>
+  <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+<rect x="28" y="28" width="456" height="456" rx="104" fill="url(#bg)" stroke="url(#neon)" stroke-width="5"/>
+<g filter="url(#glow)" fill="none" stroke="url(#neon)" stroke-linecap="round">
+  <path d="M208 143 L245 181" stroke-width="20"/>
+  <path d="M304 143 L267 181" stroke-width="20"/>
+  <rect x="84" y="169" width="344" height="258" rx="69" stroke-width="16"/>
+</g>
+<path d="M142 220 C135 220 131 228 135 235 L224 385 C232 399 248 407 264 406 C280 405 294 397 301 383 L379 232 C383 224 378 216 369 216 L326 216 C317 216 309 221 305 230 L257 329 L204 232 C200 224 192 220 183 220 Z" fill="url(#vgrad)" stroke="#d7f8ff" stroke-opacity=".35" stroke-width="3"/>
+<path d="M144 222 L257 329" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="10"/>
+</svg>
