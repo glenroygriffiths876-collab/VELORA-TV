@@ -14,3 +14,12 @@
 .installModalAction{width:100%;margin-top:8px}.installModalAction.hidden{display:none}
 @media(max-width:700px){.installAppBtn{right:10px;bottom:77px;height:44px;padding-right:11px}.installAppBtn img{width:34px;height:34px}.installCard{padding:22px}.installCard h2{font-size:26px}}
 @media(display-mode:standalone){.installAppBtn{display:none!important}}
+
+/* Smart install routing */
+.smartInstallRoute{display:flex;align-items:center;gap:13px;padding:13px 14px;margin:15px 0;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:#ffffff08}
+.smartInstallRoute.ready{border-color:rgba(43,213,179,.34);background:rgba(43,213,179,.08)}
+.smartInstallRoute.detected{border-color:rgba(108,92,255,.32);background:rgba(108,92,255,.08)}
+.smartInstallRouteIcon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:0 0 auto;background:#fff;color:#090b10;font-size:14px;font-weight:950}
+.smartInstallRoute.ready .smartInstallRouteIcon{background:#2bd5b3;color:#07110f}
+.smartInstallRoute b,.smartInstallRoute small{display:block}.smartInstallRoute b{font-size:14px}.smartInstallRoute small{margin-top:3px;color:#8f99ab;font-size:11px}
+.smartInstallLead{font-size:14px;color:#d6dbe5!important}
