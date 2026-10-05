@@ -114,7 +114,7 @@
           <table class="usageTable">
             <thead><tr><th>User</th><th>Role</th><th>Last active</th><th>Devices</th><th>Views</th><th>Plays</th><th>Last screen</th></tr></thead>
             <tbody>${users.map(u=>`<tr>
-              <td><b>${usageEsc(u.name)}</b><small>${usageEsc(u.email)}</small>${u.activeNow?'<em class="usageOnline">Online</em>':''}</td>
+              <td><b>${usageEsc(u.name)}</b><small>${usageEsc(u.username?('@'+u.username):u.email)}</small>${u.activeNow?'<em class="usageOnline">Online</em>':''}</td>
               <td>${usageEsc(u.role==='admin'?'Admin':'Tester')}</td>
               <td>${usageEsc(usageTime(u.lastSeen))}</td>
               <td>${Number(u.devices||0)}</td>
@@ -159,7 +159,7 @@
       setBusy(form,true,'Signing in…');
       try{
         const d=await request('/api/auth/login',{method:'POST',body:JSON.stringify({
-          email:$('loginEmail')?.value.trim(),
+          identifier:$('loginEmail')?.value.trim(),
           password:$('loginPassword')?.value||'',
           deviceId:deviceId(),platform:platform()
         })});
