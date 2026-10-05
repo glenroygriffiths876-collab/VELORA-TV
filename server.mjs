@@ -1078,6 +1078,7 @@ async function api(req,res){
     const password=String(b.password||'');
     if(name.length<2)return json(res,400,{error:'Enter your name'});
     if(!/^[a-z0-9_]{3,24}$/.test(username))return json(res,400,{error:'Username must be 3–24 letters, numbers or underscores'});
+    if(AUTH_ADMIN_USERNAME&&username===AUTH_ADMIN_USERNAME)return json(res,409,{error:'That username is reserved'});
     if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return json(res,400,{error:'Enter a valid email address or leave it blank'});
     if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters'});
     if(authDb.users.some(x=>String(x.username||'').toLowerCase()===username))return json(res,409,{error:'That username is already taken'});
