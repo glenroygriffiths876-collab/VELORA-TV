@@ -20,19 +20,24 @@
     const ua = navigator.userAgent || '';
     const isiOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isAndroid = /Android/i.test(ua);
-    const isSamsung = /SamsungBrowser/i.test(ua);
+    const isSamsungBrowser = /SamsungBrowser/i.test(ua);
     const isFirefox = /Firefox|FxiOS/i.test(ua);
     const isEdge = /Edg\//i.test(ua);
     const isChrome = /Chrome|CriOS/i.test(ua) && !isEdge;
     const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Edg|Android/i.test(ua);
-    const isTV = /Android TV|GoogleTV|SMART-TV|SmartTV|Tizen|WebOS|webOS|NetCast|BRAVIA|AFT|FireTV|TV Safari/i.test(ua);
+    const isAndroidTV = /Android TV|GoogleTV|Google TV|BRAVIA|SHIELD|MiTV|MiBOX|Chromecast/i.test(ua);
+    const isFireTV = /AFT|FireTV|Fire TV|Silk\//i.test(ua);
+    const isSamsungTV = /Tizen|SMART-TV|SmartTV/i.test(ua);
+    const isLGTV = /Web0S|WebOS|webOS|NetCast/i.test(ua);
+    const isTV = isAndroidTV || isFireTV || isSamsungTV || isLGTV || /TV Safari/i.test(ua);
     const isMac = /Macintosh|Mac OS X/i.test(ua) && !isiOS;
-    return {ua, isiOS, isAndroid, isSamsung, isFirefox, isEdge, isChrome, isSafari, isTV, isMac};
+    const tvFamily = isFireTV ? 'Fire TV' : isAndroidTV ? 'Android / Google TV' : isSamsungTV ? 'Samsung TV' : isLGTV ? 'LG TV' : isTV ? 'Smart TV' : '';
+    return {ua, isiOS, isAndroid, isSamsungBrowser, isFirefox, isEdge, isChrome, isSafari, isAndroidTV, isFireTV, isSamsungTV, isLGTV, isTV, isMac, tvFamily};
   }
-
   function setButtonState() {
     const btn = $('installAppBtn');
     if (!btn) return;
+    const p = platform();
     if (isStandalone()) {
       btn.classList.add('installed');
       btn.querySelector('[data-install-label]').textContent = 'Velora Installed';
@@ -40,10 +45,12 @@
       return;
     }
     btn.classList.remove('installed');
-    btn.querySelector('[data-install-label]').textContent = deferredPrompt ? 'Install Velora' : 'Install App';
-    btn.setAttribute('aria-label', 'Install Velora TV');
+    let label = 'Install App';
+    if (deferredPrompt) label = 'Install Velora';
+    else if (p.isTV) label = 'TV Install';
+    btn.querySelector('[data-install-label]').textContent = label;
+    btn.setAttribute('aria-label', p.isTV ? 'Install Velora on TV' : 'Install Velora TV');
   }
-
   function showModal() {
     const p = platform();
     const modal = $('installModal');
@@ -56,12 +63,26 @@
     action.onclick = null;
 
     if (p.isTV) {
-      title.textContent = 'Install Velora on this TV';
-      body.innerHTML =
-        '<p>Velora is ready as an installable web app where the TV browser supports PWA installation.</p>' +
-        '<ol><li>Open the browser menu.</li><li>Look for <b>Install app</b>, <b>Add to Apps</b>, or <b>Add to Home</b>.</li><li>If your TV browser does not offer one of those options, that TV platform does not allow browser-installed PWAs.</li></ol>' +
-        '<p class="installFinePrint">Android/Google TV, Fire TV, Samsung Tizen and LG webOS do not all expose the same browser-install feature. A packaged TV app is required for guaranteed TV installation.</p>';
-      action.textContent = 'Launch Full-screen TV Mode';
+      title.textContent = 'Velora detected ' + (p.tvFamily || 'your TV');
+      if (p.isAndroidTV || p.isFireTV) {
+        body.innerHTML =
+          '<p>This TV browser did <b>not</b> expose a web-app installation prompt, so Velora cannot install itself from this browser.</p>' +
+          '<p>The correct route for this device is a packaged <b>TV app</b> (Android/Fire TV APK). Once that package is available, Velora can detect this TV and offer the TV-app installer instead of PWA instructions.</p>' +
+          '<p class="installFinePrint">The TV operating system still requires you to approve the installation. A website is not allowed to bypass that confirmation.</p>';
+      } else if (p.isSamsungTV) {
+        body.innerHTML =
+          '<p>This appears to be a <b>Samsung Tizen TV</b>. Its browser is not exposing PWA installation.</p>' +
+          '<p>The reliable installation route is a packaged Samsung TV app, not a browser-installed web app.</p>';
+      } else if (p.isLGTV) {
+        body.innerHTML =
+          '<p>This appears to be an <b>LG webOS TV</b>. Its browser is not exposing PWA installation.</p>' +
+          '<p>The reliable installation route is a packaged LG webOS app, not a browser-installed web app.</p>';
+      } else {
+        body.innerHTML =
+          '<p>Your TV browser does not expose a web-app installation API. Velora therefore cannot truthfully offer a one-click browser install on this TV.</p>' +
+          '<p>The reliable route is a packaged app for the TV operating system.</p>';
+      }
+      action.textContent = 'Open Velora Full Screen';
       action.classList.remove('hidden');
       action.onclick = async () => {
         try { await document.documentElement.requestFullscreen?.(); } catch {}
@@ -70,12 +91,13 @@
     } else if (p.isiOS) {
       title.textContent = 'Install Velora on iPhone or iPad';
       body.innerHTML =
-        '<ol><li>Open Velora in <b>Safari</b>.</li><li>Tap the <b>Share</b> button.</li><li>Choose <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The Velora icon will appear like a normal app.</li></ol>';
+        '<p>iOS does not let websites trigger the install sheet automatically.</p>' +
+        '<ol><li>Open Velora in <b>Safari</b>.</li><li>Tap <b>Share</b>.</li><li>Choose <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>.</li></ol>';
     } else if (p.isSafari && p.isMac) {
       title.textContent = 'Install Velora on Mac';
       body.innerHTML =
-        '<ol><li>In Safari, open the <b>File</b> menu.</li><li>Choose <b>Add to Dock…</b>.</li><li>Confirm the name Velora TV.</li></ol><p>Velora then opens in its own app window from the Dock or Applications.</p>';
-    } else if (p.isSamsung) {
+        '<ol><li>In Safari open <b>File</b>.</li><li>Choose <b>Add to Dock…</b>.</li><li>Confirm Velora TV.</li></ol>';
+    } else if (p.isSamsungBrowser) {
       title.textContent = 'Install Velora';
       body.innerHTML =
         '<ol><li>Open the Samsung Internet menu.</li><li>Choose <b>Add page to</b>.</li><li>Select <b>Apps screen</b> or <b>Home screen</b>.</li></ol>';
@@ -86,13 +108,11 @@
     } else {
       title.textContent = 'Install Velora';
       body.innerHTML =
-        '<p>Your browser did not expose its one-click install prompt yet.</p>' +
-        '<ol><li>Open the browser menu.</li><li>Choose <b>Install Velora</b>, <b>Install app</b>, or <b>Add to Home Screen</b>.</li></ol>' +
-        '<p class="installFinePrint">Chrome and Edge can also show an install icon in the address bar once the app is installable.</p>';
+        '<p>This browser did not expose its native install prompt yet.</p>' +
+        '<p>If the browser supports installable web apps, its own <b>Install app</b> or <b>Add to Home Screen</b> command will be the available route.</p>';
     }
     modal.classList.add('on');
   }
-
   async function install() {
     if (isStandalone()) {
       toastMsg('Velora is already installed on this device.');
