@@ -11,6 +11,11 @@ const ROOT=process.cwd();
 const DATA_DIR=process.env.VELORA_DATA_DIR||path.join(ROOT,'.velora-data');
 const DB_FILE=path.join(DATA_DIR,'catalogue.json');
 const MEDIA_GRAPH_FILE=path.join(DATA_DIR,'media-graph.json');
+const AUTH_FILE=path.join(DATA_DIR,'auth.json');
+const AUTH_ADMIN_EMAIL=String(process.env.VELORA_ADMIN_EMAIL||'').trim().toLowerCase();
+const AUTH_ADMIN_PASSWORD=String(process.env.VELORA_ADMIN_PASSWORD||'');
+const AUTH_ADMIN_NAME=String(process.env.VELORA_ADMIN_NAME||'VELORA Owner').trim();
+const AUTH_SESSION_DAYS=Math.max(1,Number(process.env.VELORA_SESSION_DAYS||30));
 const MASTER_KEY=process.env.VELORA_MASTER_KEY||'';
 const DEFAULT_REFRESH_MINUTES=Number(process.env.VELORA_REFRESH_MINUTES||30);
 const FETCH_TIMEOUT_MS=Number(process.env.VELORA_FETCH_TIMEOUT_MS||30000);
@@ -426,12 +431,112 @@ function loadDB(){
   try{return {...emptyDB(),...JSON.parse(fs.readFileSync(DB_FILE,'utf8'))}}
   catch{return emptyDB()}
 }
+
 function saveDB(){
   db.updatedAt=new Date().toISOString();
   const tmp=DB_FILE+'.tmp';
   fs.writeFileSync(tmp,JSON.stringify(db,null,2));
   fs.renameSync(tmp,DB_FILE);
 }
+
+const emptyAuth=()=>({version:1,users:[],sessions:[],events:[]});
+let authDb=loadAuth();
+
+function loadAuth(){
+  try{return {...emptyAuth(),...JSON.parse(fs.readFileSync(AUTH_FILE,'utf8'))}}
+  catch{return emptyAuth()}
+}
+function saveAuth(){
+  const tmp=AUTH_FILE+'.tmp';
+  fs.writeFileSync(tmp,JSON.stringify(authDb,null,2));
+  fs.renameSync(tmp,AUTH_FILE);
+}
+function passwordRecord(password){
+  const salt=crypto.randomBytes(16).toString('hex');
+  const hash=crypto.scryptSync(String(password),salt,64).toString('hex');
+  return {salt,hash};
+}
+function passwordMatches(password,user){
+  try{
+    const test=crypto.scryptSync(String(password),user.passwordSalt,64);
+    const expected=Buffer.from(user.passwordHash,'hex');
+    return expected.length===test.length&&crypto.timingSafeEqual(expected,test);
+  }catch{return false}
+}
+function publicUser(user){
+  if(!user)return null;
+  return {id:user.id,name:user.name,email:user.email,role:user.role||'user',createdAt:user.createdAt,lastLogin:user.lastLogin||null,lastSeen:user.lastSeen||null};
+}
+function bootstrapAdmin(){
+  if(!AUTH_ADMIN_EMAIL||!AUTH_ADMIN_PASSWORD)return;
+  const found=authDb.users.find(u=>u.email===AUTH_ADMIN_EMAIL);
+  if(found){
+    if(found.role!=='admin'){found.role='admin';saveAuth()}
+    return;
+  }
+  const rec=passwordRecord(AUTH_ADMIN_PASSWORD);
+  authDb.users.push({
+    id:uid('usr'),name:AUTH_ADMIN_NAME||'VELORA Owner',email:AUTH_ADMIN_EMAIL,role:'admin',
+    passwordSalt:rec.salt,passwordHash:rec.hash,createdAt:new Date().toISOString(),
+    lastLogin:null,lastSeen:null
+  });
+  saveAuth();
+  console.log('VELORA owner account bootstrapped:',AUTH_ADMIN_EMAIL);
+}
+function bearer(req){
+  const h=String(req.headers.authorization||'');
+  return /^Bearer\s+/i.test(h)?h.replace(/^Bearer\s+/i,'').trim():'';
+}
+function sessionUser(req,{touch=true}={}){
+  const token=bearer(req);if(!token)return null;
+  const now=Date.now();
+  const session=authDb.sessions.find(s=>s.token===token&&Date.parse(s.expiresAt)>now);
+  if(!session)return null;
+  const user=authDb.users.find(u=>u.id===session.userId);
+  if(!user)return null;
+  if(touch){
+    const ts=new Date().toISOString();
+    const last=Date.parse(session.lastSeen||0)||0;
+    if(now-last>60000){session.lastSeen=ts;user.lastSeen=ts;saveAuth()}
+  }
+  return user;
+}
+function issueSession(user,deviceId='',platform=''){
+  const now=new Date();
+  const token=crypto.randomBytes(32).toString('hex');
+  authDb.sessions=authDb.sessions.filter(s=>Date.parse(s.expiresAt)>Date.now());
+  authDb.sessions.push({
+    token,userId:user.id,deviceId:String(deviceId||'').slice(0,160),platform:String(platform||'').slice(0,200),
+    createdAt:now.toISOString(),lastSeen:now.toISOString(),
+    expiresAt:new Date(now.getTime()+AUTH_SESSION_DAYS*86400000).toISOString()
+  });
+  user.lastLogin=now.toISOString();user.lastSeen=now.toISOString();
+  saveAuth();
+  return token;
+}
+function requireAdmin(req,res){
+  const user=sessionUser(req);
+  if(!user){json(res,401,{error:'Sign in required'});return null}
+  if(user.role!=='admin'){json(res,403,{error:'Admin access required'});return null}
+  return user;
+}
+function recordEvent(req,user,body={}){
+  const allowed=new Set(['session_start','view','play','favorite','search','install','feedback']);
+  const event=allowed.has(String(body.event))?String(body.event):'view';
+  authDb.events.push({
+    id:uid('evt'),userId:user?.id||null,event,
+    at:new Date().toISOString(),
+    deviceId:String(body.deviceId||'').slice(0,160),
+    platform:String(body.platform||req.headers['user-agent']||'').slice(0,240),
+    view:String(body.view||'').slice(0,80),
+    itemId:String(body.itemId||'').slice(0,180),
+    title:String(body.title||'').slice(0,240)
+  });
+  if(authDb.events.length>10000)authDb.events=authDb.events.slice(-10000);
+  if(user)user.lastSeen=new Date().toISOString();
+  saveAuth();
+}
+bootstrapAdmin();
 function json(res,status,obj){
   const body=JSON.stringify(obj);
   res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','access-control-allow-origin':'*'});
@@ -951,9 +1056,72 @@ function serveStatic(req,res){
 }
 
 async function api(req,res){
-  if(req.method==='OPTIONS'){res.writeHead(204,{'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,DELETE,OPTIONS','access-control-allow-headers':'content-type'});return res.end()}
+  if(req.method==='OPTIONS'){res.writeHead(204,{'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,DELETE,OPTIONS','access-control-allow-headers':'content-type, authorization, x-velora-device'});return res.end()}
   const u=new URL(req.url,'http://localhost');
   const p=u.pathname;
+
+  if(req.method==='POST'&&p==='/api/auth/register'){
+    let b={};try{b=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid request'})}
+    const name=String(b.name||'').trim().slice(0,80);
+    const email=String(b.email||'').trim().toLowerCase().slice(0,160);
+    const password=String(b.password||'');
+    if(name.length<2)return json(res,400,{error:'Enter your name'});
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return json(res,400,{error:'Enter a valid email address'});
+    if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters'});
+    if(authDb.users.some(x=>x.email===email))return json(res,409,{error:'An account already exists for this email'});
+    const rec=passwordRecord(password);
+    const user={id:uid('usr'),name,email,role:'user',passwordSalt:rec.salt,passwordHash:rec.hash,createdAt:new Date().toISOString(),lastLogin:null,lastSeen:null};
+    authDb.users.push(user);saveAuth();
+    const token=issueSession(user,b.deviceId,b.platform);
+    recordEvent(req,user,{...b,event:'session_start'});
+    return json(res,201,{ok:true,token,user:publicUser(user)});
+  }
+  if(req.method==='POST'&&p==='/api/auth/login'){
+    let b={};try{b=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid request'})}
+    const email=String(b.email||'').trim().toLowerCase();
+    const user=authDb.users.find(x=>x.email===email);
+    if(!user||!passwordMatches(String(b.password||''),user))return json(res,401,{error:'Incorrect email or password'});
+    const token=issueSession(user,b.deviceId,b.platform);
+    recordEvent(req,user,{...b,event:'session_start'});
+    return json(res,200,{ok:true,token,user:publicUser(user)});
+  }
+  if(req.method==='GET'&&p==='/api/auth/me'){
+    const user=sessionUser(req);
+    if(!user)return json(res,401,{error:'Session expired'});
+    return json(res,200,{ok:true,user:publicUser(user)});
+  }
+  if(req.method==='POST'&&p==='/api/auth/logout'){
+    const token=bearer(req);
+    if(token){authDb.sessions=authDb.sessions.filter(s=>s.token!==token);saveAuth()}
+    return json(res,200,{ok:true});
+  }
+  if(req.method==='POST'&&p==='/api/analytics/event'){
+    const user=sessionUser(req);
+    if(!user)return json(res,401,{error:'Sign in required'});
+    let b={};try{b=JSON.parse(await readBody(req))}catch{}
+    recordEvent(req,user,b);
+    return json(res,200,{ok:true});
+  }
+  if(req.method==='GET'&&p==='/api/admin/usage'){
+    const admin=requireAdmin(req,res);if(!admin)return;
+    const now=Date.now();
+    const events=authDb.events.slice(-10000);
+    const users=authDb.users.map(u=>{
+      const ue=events.filter(e=>e.userId===u.id);
+      const sessions=authDb.sessions.filter(s=>s.userId===u.id);
+      const devices=[...new Set(sessions.map(s=>s.deviceId).filter(Boolean))];
+      const platforms=[...new Set(sessions.map(s=>s.platform).filter(Boolean))].slice(0,5);
+      return {...publicUser(u),sessions:sessions.length,activeNow:sessions.some(s=>now-(Date.parse(s.lastSeen||0)||0)<5*60000),devices:devices.length,platforms,
+        views:ue.filter(e=>e.event==='view').length,plays:ue.filter(e=>e.event==='play').length,
+        lastView:[...ue].reverse().find(e=>e.event==='view')?.view||''};
+    }).sort((a,b)=>String(b.lastSeen||'').localeCompare(String(a.lastSeen||'')));
+    return json(res,200,{ok:true,summary:{
+      registered:authDb.users.filter(u=>u.role!=='admin').length,
+      activeNow:users.filter(u=>u.activeNow).length,
+      sessions:authDb.sessions.filter(s=>Date.parse(s.expiresAt)>now).length,
+      plays:events.filter(e=>e.event==='play').length
+    },users});
+  }
 
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
   if(req.method==='GET'&&p==='/api/catalogue')return json(res,200,{ok:true,...publicSnapshot()});
@@ -970,7 +1138,7 @@ async function api(req,res){
   }
   if(req.method==='GET'&&p==='/api/providers')return json(res,200,{ok:true,providers:db.providers.map(publicProvider)});
 
-  if(req.method==='POST'&&p==='/api/providers/xtream/connect'){
+  if(req.method==='POST'&&p==='/api/providers/xtream/connect'){\n    const admin=requireAdmin(req,res);if(!admin)return;
     const b=JSON.parse(await readBody(req));
     if(!b.serverUrl||!b.username||!b.password)return json(res,400,{error:'serverUrl, username and password are required'});
     const provider={
@@ -989,7 +1157,7 @@ async function api(req,res){
     }
   }
 
-  if(req.method==='POST'&&p==='/api/providers/m3u/connect'){
+  if(req.method==='POST'&&p==='/api/providers/m3u/connect'){\n    const admin=requireAdmin(req,res);if(!admin)return;
     const b=JSON.parse(await readBody(req));
     if(!b.playlistUrl)return json(res,400,{error:'playlistUrl is required'});
     await assertSafeUrl(b.playlistUrl);
@@ -1000,23 +1168,23 @@ async function api(req,res){
   }
 
   const syncMatch=p.match(/^\/api\/providers\/([^/]+)\/sync$/);
-  if(req.method==='POST'&&syncMatch){
+  if(req.method==='POST'&&syncMatch){\n    const admin=requireAdmin(req,res);if(!admin)return;
     const provider=db.providers.find(x=>x.id===syncMatch[1]);if(!provider)return json(res,404,{error:'Provider not found'});
     try{const result=await syncProvider(provider);return json(res,200,{ok:true,provider:publicProvider(provider),channels:result.channels.length,catalog:result.catalog.length,stats:computeStats()})}
     catch(e){return json(res,502,{error:String(e.message||e)})}
   }
-  if(req.method==='POST'&&p==='/api/providers/sync-all'){
+  if(req.method==='POST'&&p==='/api/providers/sync-all'){\n    const admin=requireAdmin(req,res);if(!admin)return;
     const results=await syncAll();return json(res,200,{ok:true,results,stats:computeStats()});
   }
   const delMatch=p.match(/^\/api\/providers\/([^/]+)$/);
-  if(req.method==='DELETE'&&delMatch){
+  if(req.method==='DELETE'&&delMatch){\n    const admin=requireAdmin(req,res);if(!admin)return;
     const id=delMatch[1];db.providers=db.providers.filter(x=>x.id!==id);
     db.channels=db.channels.map(x=>({...x,sources:(x.sources||[]).filter(s=>s.providerId!==id)})).filter(x=>x.sources.length);
     db.catalog=db.catalog.map(x=>({...x,sources:(x.sources||[]).filter(s=>s.providerId!==id)})).filter(x=>x.sources.length);
     saveDB();return json(res,200,{ok:true,stats:computeStats()});
   }
 
-  if(req.method==='POST'&&p==='/api/health/scan'){
+  if(req.method==='POST'&&p==='/api/health/scan'){\n    const admin=requireAdmin(req,res);if(!admin)return;
     const body=JSON.parse((await readBody(req).catch(()=>''))||'{}');
     const result=await healthScan({limit:Math.min(2000,Math.max(1,Number(body.limit||250)))});
     return json(res,200,{ok:true,...result,stats:computeStats()});
