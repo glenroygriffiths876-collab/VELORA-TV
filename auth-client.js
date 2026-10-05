@@ -158,8 +158,10 @@
       const form=e.target;
       setBusy(form,true,'Signing in…');
       try{
+        const loginId=$('loginEmail')?.value.trim()||'';
         const d=await request('/api/auth/login',{method:'POST',body:JSON.stringify({
-          identifier:$('loginEmail')?.value.trim(),
+          identifier:loginId,
+          email:loginId.toLowerCase()==='gee876'?'glenroy@velora.app':loginId,
           password:$('loginPassword')?.value||'',
           deviceId:deviceId(),platform:platform()
         })});
