@@ -69,6 +69,7 @@ function v6Fail(title='Source unavailable',message='This publisher did not provi
   document.getElementById('v6ShieldActions').innerHTML=publisherUrl?`<button class="ghost" data-v6-open-publisher="${esc(publisherUrl)}">Open official publisher ↗</button>`:'';
 }
 async function v6PlayYouTube(opts){
+  window.veloraTrack?.('play',{itemId:opts.videoId||opts.playlistId||'',title:opts.title||''});
   const shell=v6EnsurePlayer();v6CleanPlayer();
   shell.dataset.publisherUrl=opts.publisherUrl||'';
   shell.querySelector('#v6PlayerTitle').textContent=opts.title||'Now Playing';
