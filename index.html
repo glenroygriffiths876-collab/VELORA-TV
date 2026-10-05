@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="real-v8-vod.css?v=2" />
 <link rel="stylesheet" href="real-v9-client.css?v=2" />
 <link rel="stylesheet" href="tv-mode.css?v=1" />
+<link rel="stylesheet" href="auth.css?v=1" />
 <title>Velora TV</title>
 </head>
 <body>
@@ -30,16 +31,32 @@
 </button>
 <div id="login" class="loginShell">
   <div class="loginBackdrop"></div>
-  <form id="loginForm" class="loginCard">
+  <div class="loginCard authCard">
     <div class="brand big"><span class="brandMark"><img src="icons/icon.svg" alt="" aria-hidden="true"></span><span>VELORA</span></div>
-    <h1>Watch everything you love.</h1>
-    <p>Live TV, full movies and series that play inside Velora, plus connected catalogue feeds.</p>
-    <label>Email<input id="loginEmail" type="email" value="demo@velora.app" required></label>
-    <label>Password<input id="loginPassword" type="password" value="demo1234" required></label>
-    <button class="primary wide" type="submit">Sign in</button>
-    <button class="ghost wide" id="demoBtn" type="button">Continue with demo account</button>
-    <small>Demo: demo@velora.app / demo1234</small>
-  </form>
+
+    <form id="loginForm">
+      <span class="authEyebrow">WELCOME BACK</span>
+      <h1>Sign in to VELORA.</h1>
+      <p>Your profile, list and viewing activity stay separate from other testers.</p>
+      <label>Email<input id="loginEmail" type="email" autocomplete="email" required></label>
+      <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+      <button class="primary wide" type="submit">Sign in</button>
+      <button class="ghost wide" id="showRegister" type="button">Create a testing profile</button>
+      <small class="authHint">Friends and testers should create their own profile. Admin controls are not available to tester accounts.</small>
+    </form>
+
+    <form id="registerForm" class="hidden">
+      <span class="authEyebrow">NEW TESTER</span>
+      <h1>Create your profile.</h1>
+      <p>This creates a personal VELORA testing account.</p>
+      <label>Name<input id="registerName" autocomplete="name" maxlength="80" required></label>
+      <label>Email<input id="registerEmail" type="email" autocomplete="email" required></label>
+      <label>Password<input id="registerPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button class="primary wide" type="submit">Create profile</button>
+      <button class="ghost wide" id="showLogin" type="button">Back to sign in</button>
+      <small class="authHint">Passwords are stored as secure hashes, not readable text.</small>
+    </form>
+  </div>
 </div>
 
 <div id="app" class="app hidden">
@@ -61,11 +78,11 @@
   </header>
 
   <aside class="profileMenu" id="profileMenu">
-    <div class="profileItem"><span class="avatar">G</span><div><b>Glenroy</b><small>Primary</small></div></div>
+    <div class="profileItem"><span class="avatar" id="menuAvatar">V</span><div><b id="menuProfileName">Viewer</b><small id="menuProfileRole">Profile</small></div></div>
     <button id="kidsMode">👦 Kids profile</button>
     <button data-view="mylist">♡ My List</button>
     <button data-view="settings">⚙ Settings</button>
-    <button data-view="admin">▦ Admin / Feed</button>
+    <button data-view="admin" id="adminMenuBtn" class="hidden">▦ Admin / Feed</button>
     <button id="signOut">⇥ Sign out</button>
   </aside>
 
@@ -129,6 +146,7 @@
 <script src="real-v7-ingest.js?v=12"></script>
 <script src="real-v8-vod.js?v=2"></script>
 <script src="real-v9-client.js?v=2"></script>
+<script src="auth-client.js?v=1"></script>
 <script src="install.js?v=2"></script>
 <script src="tv-mode.js?v=1"></script>
 </body>
