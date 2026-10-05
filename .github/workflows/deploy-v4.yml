@@ -35,7 +35,7 @@ jobs:
           node --check real-v8-vod.js
           node --check real-v9-client.js
           node --check real-v10-provider-preview.js
-          node --check install.js
+          node --check install.js\n          node --check tv-mode.js
           test -f index.html
           test -f styles.css
           test -f real-v5.css
@@ -44,7 +44,7 @@ jobs:
           test -f real-v8-vod.css
           test -f real-v9-client.css
           test -f real-v10-provider-preview.css
-          test -f install.css
+          test -f install.css\n          test -f tv-mode.css
           test -f icons/icon.svg
           test -f icons/icon-192.png
           test -f icons/icon-180.png
@@ -64,7 +64,7 @@ jobs:
           git fetch origin gh-pages
           git worktree add -B gh-pages /tmp/velora-site origin/gh-pages
           find /tmp/velora-site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp index.html app.js styles.css install.css install.js real-v5.css real-v5-data.js real-v5-home.js real-v5-live.js real-v5-runtime.js real-v6.css real-v6-media.js real-v6-ui.js real-v7.css real-v7-ingest.js real-v8-vod.css real-v8-vod.js real-v9-client.css real-v9-client.js real-v10-provider-preview.css real-v10-provider-preview.js manifest.json sw.js /tmp/velora-site/
+          cp index.html app.js styles.css install.css install.js tv-mode.css tv-mode.js real-v5.css real-v5-data.js real-v5-home.js real-v5-live.js real-v5-runtime.js real-v6.css real-v6-media.js real-v6-ui.js real-v7.css real-v7-ingest.js real-v8-vod.css real-v8-vod.js real-v9-client.css real-v9-client.js real-v10-provider-preview.css real-v10-provider-preview.js manifest.json sw.js /tmp/velora-site/
           cp -R icons /tmp/velora-site/
           cp demo-authorized-catalog.json demo-distributor-catalog.csv demo-authorized-playlist.m3u demo-epg.xml /tmp/velora-site/ 2>/dev/null || true
           touch /tmp/velora-site/.nojekyll
