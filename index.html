@@ -4,8 +4,16 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#07080d" />
+<meta name="application-name" content="Velora TV" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Velora" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="install.css?v=1" />
 <link rel="stylesheet" href="real-v5.css" />
 <link rel="stylesheet" href="real-v6.css" />
 <link rel="stylesheet" href="real-v7.css?v=12" />
@@ -16,10 +24,14 @@
 </head>
 <body>
 <div id="toast" class="toast"></div>
+<button id="installAppBtn" class="installAppBtn" type="button" aria-label="Install Velora TV">
+  <img src="icons/icon.svg" alt="" aria-hidden="true">
+  <span data-install-label>Install App</span>
+</button>
 <div id="login" class="loginShell">
   <div class="loginBackdrop"></div>
   <form id="loginForm" class="loginCard">
-    <div class="brand big"><span class="brandMark">V</span><span>VELORA</span></div>
+    <div class="brand big"><span class="brandMark"><img src="icons/icon.svg" alt="" aria-hidden="true"></span><span>VELORA</span></div>
     <h1>Watch everything you love.</h1>
     <p>Live TV, full movies and series that play inside Velora, plus connected catalogue feeds.</p>
     <label>Email<input id="loginEmail" type="email" value="demo@velora.app" required></label>
@@ -32,7 +44,7 @@
 
 <div id="app" class="app hidden">
   <header class="topbar">
-    <button class="brand brandButton" data-view="home"><span class="brandMark">V</span><span>VELORA</span></button>
+    <button class="brand brandButton" data-view="home"><span class="brandMark"><img src="icons/icon.svg" alt="" aria-hidden="true"></span><span>VELORA</span></button>
     <nav class="mainnav" aria-label="Primary">
       <button data-view="home" class="active">Home</button>
       <button data-view="live">Live TV</button>
@@ -92,6 +104,16 @@
   </div>
 </div>
 
+<div class="installModal" id="installModal" aria-hidden="true">
+  <div class="installCard" role="dialog" aria-modal="true" aria-labelledby="installModalTitle">
+    <button class="installClose" data-close-install aria-label="Close">✕</button>
+    <img class="installCardIcon" src="icons/icon.svg" alt="Velora TV">
+    <h2 id="installModalTitle">Install Velora</h2>
+    <div id="installModalBody"></div>
+    <button id="installModalAction" class="primary installModalAction hidden" type="button"></button>
+  </div>
+</div>
+
 <div class="modal" id="detailsModal">
   <div class="detailsCard" id="detailsCard"></div>
 </div>
@@ -108,5 +130,6 @@
 <script src="real-v8-vod.js?v=2"></script>
 <script src="real-v9-client.js?v=2"></script>
 <script src="real-v10-provider-preview.js?v=1"></script>
+<script src="install.js?v=1"></script>
 </body>
 </html>
