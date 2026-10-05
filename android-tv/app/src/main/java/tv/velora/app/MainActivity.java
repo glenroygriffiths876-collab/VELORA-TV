@@ -97,13 +97,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onHideCustomView() {
-                if (customView == null) return;
-                root.removeView(customView);
-                customView = null;
-                webView.setVisibility(View.VISIBLE);
-                webView.requestFocus();
-                if (customViewCallback != null) customViewCallback.onCustomViewHidden();
-                customViewCallback = null;
+                hideCustomView();
             }
         });
 
@@ -115,6 +109,16 @@ public class MainActivity extends Activity {
 
         webView.loadUrl(getString(R.string.velora_url));
         webView.requestFocus();
+    }
+
+    private void hideCustomView() {
+        if (customView == null) return;
+        root.removeView(customView);
+        customView = null;
+        webView.setVisibility(View.VISIBLE);
+        webView.requestFocus();
+        if (customViewCallback != null) customViewCallback.onCustomViewHidden();
+        customViewCallback = null;
     }
 
     private void showOfflinePage() {
@@ -130,7 +134,7 @@ public class MainActivity extends Activity {
 
     private void handleBack() {
         if (customView != null) {
-            webView.getWebChromeClient().onHideCustomView();
+            hideCustomView();
             return;
         }
         webView.evaluateJavascript(
