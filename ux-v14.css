@@ -93,9 +93,22 @@
 }
 @media(max-width:480px){
   #view-live .veloraChannelRemoteLayout{grid-template-columns:minmax(0,1fr) 104px}
-  #view-live .veloraLiveRemote{margin:7px 7px 7px 0;padding:8px 7px;border-radius:17px}
-  #view-live .veloraRemoteChannel{grid-template-rows:40px 18px 40px}
-  #view-live .veloraRemoteVolume button{height:29px}
+  #view-live .veloraLiveRemote{
+    margin:0 7px 7px 0;
+    padding:6px 7px 7px;
+    border-radius:17px;
+    transform:translateY(-9px);
+    position:sticky;
+    top:64px;
+    z-index:8;
+  }
+  #view-live .veloraRemoteTop{margin-bottom:5px}
+  #view-live .veloraRemoteChannel{grid-template-rows:35px 14px 35px;gap:2px}
+  #view-live .veloraRemoteVolume{margin-top:6px;padding-top:6px}
+  #view-live .veloraRemoteVolume>span{margin-bottom:4px}
+  #view-live .veloraRemoteVolume button{height:26px}
+  #view-live #veloraRemoteVolumeLabel{margin-top:3px}
+  #view-live .veloraRemoteFullscreen{height:31px;margin-top:6px}
   #view-live .channelCats{padding-right:4px}
   #view-live .channelRow{padding-left:8px;padding-right:6px}
   #view-live .channelRow small{max-width:38vw}
