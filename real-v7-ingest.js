@@ -528,6 +528,20 @@ function v7TryNativePlayer(c,urls,token){
     return false;
   }
 }
+async function v7StartPlayback(v){
+  try{
+    await v.play();
+    return true;
+  }catch(e){
+    if(e?.name!=='NotAllowedError')return false;
+    try{
+      v.muted=true;
+      await v.play();
+      toast('Live TV started muted — use the remote for sound.');
+      return true;
+    }catch{return false}
+  }
+}
 function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN){
   if(token!==V7_SELECTION_TOKEN)return;
   const url=urls[index];
@@ -572,7 +586,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
     };
 
     if(autoplay){
-      try{v.play().catch(()=>{})}catch{}
+      v7StartPlayback(v).catch(()=>{});
     }
 
     if(typeof v.requestVideoFrameCallback==='function'){
@@ -630,7 +644,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
       });
       state.hls.loadSource(url);
       state.hls.attachMedia(v);
-      state.hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(autoplay){try{v.play().catch(()=>{})}catch{}}});
+      state.hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(autoplay)v7StartPlayback(v).catch(()=>{})});
       state.hls.on(Hls.Events.ERROR,(_,data)=>{if(data?.fatal)fail()});
     }else{
       v.src=url;v.load();
