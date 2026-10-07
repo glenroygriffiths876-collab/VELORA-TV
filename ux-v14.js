@@ -58,6 +58,7 @@
 
   function visibleChannelIds(){
     return [...document.querySelectorAll('#channelList [data-channel]')]
+      .filter(el=>!el.classList.contains('v7SessionUnavailable')&&el.getAttribute('aria-disabled')!=='true')
       .map(el=>el.dataset.channel)
       .filter(Boolean);
   }
