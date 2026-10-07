@@ -87,15 +87,14 @@ function v9ContinueItems(){
   return state.history.map(id=>v9Find(id)).filter(Boolean).slice(0,12);
 }
 function v9ProviderHero(){
-  const p=V9_CLIENT.provider;
   const counts=`${V9_CLIENT.live.length.toLocaleString()} live • ${V9_CLIENT.movies.length.toLocaleString()} movies • ${V9_CLIENT.series.length.toLocaleString()} series`;
   return `<section class="v9ProviderHero">
-    <div><span class="heroEyebrow">PROVIDER CLIENT MODE</span><h1>One app. One provider contract.</h1>
-      <p>Velora is now consuming a single provider-style feed for Live TV, Movies and Series. This sandbox uses public/open media so the client can be perfected without touching anyone else's account.</p>
-      <div class="meta"><span>${esc(p?.name||'Velora Unified Provider')}</span><span>${counts}</span><span>Device-local client</span></div>
+    <div><span class="heroEyebrow">WELCOME TO VELORA</span><h1>What do you want to watch?</h1>
+      <p>Live TV, movies and series in one simple place.</p>
+      <div class="meta"><span>${counts}</span></div>
       <div class="actions"><button class="primary" data-view="live">◉ Live TV</button><button class="ghost" data-view="movies">▶ Movies</button><button class="ghost" data-view="series">▤ Series</button></div>
     </div>
-    <div class="v9ProviderStatus"><i></i><b>Unified graph connected</b><small>${V9_CLIENT.generatedAt?'Updated '+new Date(V9_CLIENT.generatedAt).toLocaleTimeString():''}</small></div>
+    <div class="v9ProviderStatus"><i></i><b>Ready to watch</b><small>${counts}</small></div>
   </section>`;
 }
 const v9PriorRenderHome=renderHome;
@@ -117,7 +116,7 @@ function v9RenderMovies(query=''){
   const q=String(query||'').trim().toLowerCase();
   const items=V9_CLIENT.movies.filter(x=>!q||(x.title+' '+(x.genre||'')+' '+(x.description||'')).toLowerCase().includes(q));
   el.innerHTML=`<div class="contentPage v9LibraryPage">
-    <div class="pageHead"><div><span class="heroEyebrow">PROVIDER LIBRARY</span><h1>Movies</h1><p>${V9_CLIENT.movies.length.toLocaleString()} playable movie items from the connected unified provider contract.</p></div><span class="status"><i></i>${esc(V9_CLIENT.provider?.name||'Sandbox')}</span></div>
+    <div class="pageHead"><div><span class="heroEyebrow">WATCH NOW</span><h1>Movies</h1><p>Browse ${V9_CLIENT.movies.length.toLocaleString()} movies available in VELORA.</p></div></div>
     <div class="v9LibraryTools"><input id="v9MovieSearch" value="${esc(query)}" placeholder="Search movies…"><button class="ghost" data-v9-search-movies>Search</button></div>
     <div class="v9LibraryGrid">${items.map(v9VodCard).join('')}</div>
   </div>`;
@@ -127,7 +126,7 @@ function v9RenderSeries(query=''){
   const q=String(query||'').trim().toLowerCase();
   const items=V9_CLIENT.series.filter(x=>!q||(x.title+' '+(x.genre||'')+' '+(x.description||'')).toLowerCase().includes(q));
   el.innerHTML=`<div class="contentPage v9LibraryPage">
-    <div class="pageHead"><div><span class="heroEyebrow">PROVIDER LIBRARY</span><h1>Series</h1><p>${V9_CLIENT.series.length.toLocaleString()} series/items, including grouped full-episode publisher feeds and classic television.</p></div><span class="status"><i></i>${esc(V9_CLIENT.provider?.name||'Sandbox')}</span></div>
+    <div class="pageHead"><div><span class="heroEyebrow">WATCH NOW</span><h1>Series</h1><p>Browse ${V9_CLIENT.series.length.toLocaleString()} series and full episodes available in VELORA.</p></div></div>
     <div class="v9LibraryTools"><input id="v9SeriesSearch" value="${esc(query)}" placeholder="Search series…"><button class="ghost" data-v9-search-series>Search</button></div>
     <div class="v9LibraryGrid">${items.map(v9VodCard).join('')}</div>
   </div>`;
@@ -162,7 +161,7 @@ function v9ShowDetails(id){
       <button class="ghost" data-v9-episode="${esc(item.id)}" data-v9-episode-id="${esc(ep.id)}">▶ Play</button>
     </div>`).join('')}</section>`).join('');
   modal.querySelector('#detailsCard').innerHTML=`<button class="circleBtn closeDetails" data-close-details>✕</button>
-    <div class="detailsHero" style="background-image:url('${v9Art(item)}')"><div class="detailsCopy"><span class="heroEyebrow">${item.type==='series'?'SERIES':'MOVIE'} • PROVIDER CLIENT</span>
+    <div class="detailsHero" style="background-image:url('${v9Art(item)}')"><div class="detailsCopy"><span class="heroEyebrow">${item.type==='series'?'SERIES':'MOVIE'}</span>
       <h1>${esc(item.title)}</h1><div class="meta">${item.year?`<span>${esc(item.year)}</span>`:''}<span>${esc(item.rating||'NR')}</span><span>${esc(item.genre||'')}</span><span>${esc(item.sourceName||item.publisher||V9_CLIENT.provider?.name||'Velora')}</span></div>
       <p>${esc(item.description||'')}</p><div class="actions"><button class="primary" data-v9-play="${esc(item.id)}">▶ Play</button><button class="ghost" data-v9-fav="${esc(item.id)}">${state.favorites.has(item.id)?'✓ My List':'＋ My List'}</button></div>
     </div></div>
@@ -179,12 +178,12 @@ const v9PriorRenderMyList=renderMyList;
 renderMyList=function(){
   if(!V9_CLIENT.ready){v9PriorRenderMyList();return}
   const items=v9AllVod().filter(x=>state.favorites.has(x.id));
-  document.getElementById('view-mylist').innerHTML=`<div class="contentPage"><div class="pageHead"><div><span class="heroEyebrow">PERSONAL</span><h1>My List</h1><p>Saved provider movies and series on this device.</p></div></div>${items.length?`<div class="v9LibraryGrid">${items.map(v9VodCard).join('')}</div>`:'<div class="empty">Your list is empty.</div>'}</div>`;
+  document.getElementById('view-mylist').innerHTML=`<div class="contentPage"><div class="pageHead"><div><span class="heroEyebrow">PERSONAL</span><h1>My List</h1><p>Everything you've saved for later.</p></div></div>${items.length?`<div class="v9LibraryGrid">${items.map(v9VodCard).join('')}</div>`:'<div class="empty">Your list is empty.</div>'}</div>`;
 };
 const v9PriorRenderSearch=renderSearch;
 renderSearch=function(){
   if(!V9_CLIENT.ready){v9PriorRenderSearch();return}
-  document.getElementById('view-search').innerHTML=`<div class="contentPage"><div class="pageHead"><div><span class="heroEyebrow">UNIVERSAL SEARCH</span><h1>Search Velora</h1><p>Search Live TV, Movies and Series from the provider client.</p></div></div><div class="searchBar"><input id="globalSearch" autocomplete="off" placeholder="Search channels, movies, series…"></div><div id="searchResults"></div></div>`;drawSearch('');
+  document.getElementById('view-search').innerHTML=`<div class="contentPage"><div class="pageHead"><div><span class="heroEyebrow">SEARCH</span><h1>Find something to watch</h1><p>Search Live TV, Movies and Series.</p></div></div><div class="searchBar"><input id="globalSearch" autocomplete="off" placeholder="Search channels, movies, series…"></div><div id="searchResults"></div></div>`;drawSearch('');
 };
 drawSearch=function(q){
   const el=document.getElementById('searchResults');if(!el)return;
