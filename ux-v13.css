@@ -24,3 +24,11 @@
   .veloraAdultSettingsActions{display:grid;grid-template-columns:1fr}
   .veloraAdultSettingsActions button{width:100%}
 }
+
+.veloraMatureNotice{
+  display:flex;gap:10px;align-items:flex-start;
+  margin:0 0 14px;padding:12px 14px;border-radius:14px;
+  border:1px solid #c04f7828;background:#7a1f4514;color:#aeb6c5;font-size:11px;line-height:1.45
+}
+.veloraMatureNotice b{color:#ffd6e5;white-space:nowrap}
+.veloraAdultProviderPanel{border-color:#c04f7828;background:linear-gradient(145deg,#171018,#11141d)}
