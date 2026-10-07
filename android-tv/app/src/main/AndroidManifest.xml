@@ -20,7 +20,11 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.VeloraTV"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="true">
+        <activity
+            android:name=".NativePlayerActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|smallestScreenSize"
