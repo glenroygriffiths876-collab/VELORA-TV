@@ -726,7 +726,8 @@ function normalizeXtreamChannel(provider,x,i){
     epgId:x.epg_channel_id||'',
     num:String(x.num??i+1),
     name:x.name||'Channel '+(i+1),
-    group:String(x.category_name||x.category_id||'Other'),
+    group:provider.adult?'18+ Adult':String(x.category_name||x.category_id||'Other'),
+    adult:!!provider.adult,
     logo:x.stream_icon||'',
     now:'Live',
     next:'',
@@ -1030,7 +1031,7 @@ function parseM3U(textBody,provider){
     }else if(line&&!line.startsWith('#')&&meta){
       const id=uid('m3u');
       const publicRelay=!!provider.publicDirectory;
-      out.push({id,num:String(out.length+1),name:meta.name,epgId:meta.epgId,group:meta.group,logo:meta.logo,now:'Live',url:publicRelay?('/api/public/channel/'+id):line,upstreamUrl:publicRelay?line:'',sourceId:provider.id,sourceName:provider.name,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',sources:[{providerId:provider.id,providerName:provider.name,kind:'m3u',url:publicRelay?relayPath(line):line,upstreamUrl:publicRelay?line:'',priority:Number(provider.priority||50),territory:provider.territory||'WORLD',health:'unknown',lastChecked:null}]});
+      out.push({id,num:String(out.length+1),name:meta.name,epgId:meta.epgId,group:provider.adult?'18+ Adult':meta.group,adult:!!provider.adult,logo:meta.logo,now:'Live',url:publicRelay?('/api/public/channel/'+id):line,upstreamUrl:publicRelay?line:'',sourceId:provider.id,sourceName:provider.name,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',sources:[{providerId:provider.id,providerName:provider.name,kind:'m3u',url:publicRelay?relayPath(line):line,upstreamUrl:publicRelay?line:'',priority:Number(provider.priority||50),territory:provider.territory||'WORLD',health:'unknown',lastChecked:null}]});
       meta=null;
     }
   }
@@ -1247,7 +1248,7 @@ async function api(req,res){
     if(!b.serverUrl||!b.username||!b.password)return json(res,400,{error:'serverUrl, username and password are required'});
     const provider={
       id:uid('xt'),type:'xtream',name:b.name||'Xtream Provider',serverUrl:cleanBase(b.serverUrl),territory:String(b.territory||'WORLD').toUpperCase(),
-      priority:Number(b.priority||50),enabled:true,refreshMinutes:Number(b.refreshMinutes||DEFAULT_REFRESH_MINUTES),createdAt:new Date().toISOString(),
+      priority:Number(b.priority||50),adult:!!b.adult,enabled:true,refreshMinutes:Number(b.refreshMinutes||DEFAULT_REFRESH_MINUTES),createdAt:new Date().toISOString(),
       secret:protectSecret({username:String(b.username),password:String(b.password)})
     };
     await assertSafeUrl(provider.serverUrl);
@@ -1266,7 +1267,7 @@ async function api(req,res){
     const b=JSON.parse(await readBody(req));
     if(!b.playlistUrl)return json(res,400,{error:'playlistUrl is required'});
     await assertSafeUrl(b.playlistUrl);
-    const provider={id:uid('m3u'),type:'m3u-url',name:b.name||'M3U Provider',territory:String(b.territory||'WORLD').toUpperCase(),priority:Number(b.priority||50),enabled:true,refreshMinutes:Number(b.refreshMinutes||DEFAULT_REFRESH_MINUTES),createdAt:new Date().toISOString(),secret:protectSecret({playlistUrl:b.playlistUrl})};
+    const provider={id:uid('m3u'),type:'m3u-url',name:b.name||'M3U Provider',territory:String(b.territory||'WORLD').toUpperCase(),priority:Number(b.priority||50),adult:!!b.adult,enabled:true,refreshMinutes:Number(b.refreshMinutes||DEFAULT_REFRESH_MINUTES),createdAt:new Date().toISOString(),secret:protectSecret({playlistUrl:b.playlistUrl})};
     db.providers.push(provider);saveDB();
     try{const result=await syncProvider(provider);return json(res,200,{ok:true,provider:publicProvider(provider),channels:result.channels,catalog:[],stats:computeStats()})}
     catch(e){db.providers=db.providers.filter(x=>x.id!==provider.id);saveDB();return json(res,502,{error:String(e.message||e)})}
