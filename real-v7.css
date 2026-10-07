@@ -33,3 +33,14 @@
 .v7MiniSpinner{width:30px;height:30px;border:3px solid #ffffff1a;border-top-color:#6d5cff;border-radius:50%;animation:v7spin .8s linear infinite;margin-top:10px}
 @keyframes v7spin{to{transform:rotate(360deg)}}
 @media(max-width:760px){.v7CatalogueBanner{align-items:flex-start;flex-direction:column}.v7CatalogueBanner .primary{width:100%}.v7CatalogueBanner b{font-size:18px}}
+
+#view-live .channelRow.v7SessionUnavailable{
+  opacity:.42;
+  filter:saturate(.45);
+}
+#view-live .channelRow.v7SessionUnavailable:after{
+  content:"Unavailable";
+  font-size:8px;
+  color:#ff8fa3;
+  margin-left:4px;
+}
