@@ -1125,7 +1125,7 @@ async function healthScan({limit=250,offset=0}={}){
       if(!url&&/^https?:\/\//i.test(String(s.url||'')))url=s.url;
       if(!url&&/^https?:\/\//i.test(String(ch.upstreamUrl||'')))url=ch.upstreamUrl;
       if(!url&&provider&&s.streamId&&s.kind==='live')url=playbackUrl(provider,'live',{stream_id:s.streamId});
-      if(url)allTargets.push({key:'channel:'+ch.id+':'+s.providerId,url,source:s});
+      if(url)allTargets.push({key:'channel:'+ch.id+':'+s.providerId,url,source:s,channel:ch});
     }
   }
   const total=allTargets.length;
@@ -1142,6 +1142,22 @@ async function healthScan({limit=250,offset=0}={}){
     recordReliability(t.url,{ok:h.status==='up',reason:h.error||('HTTP '+(h.httpStatus||'')),latencyMs:h.latencyMs??(Date.now()-started),kind:'probe'});
     return {...t,...h};
   });
+  const touched=new Set(checked.map(x=>x.channel).filter(Boolean));
+  const nowIso=new Date().toISOString();
+  for(const ch of touched){
+    const probeable=(ch.sources||[]).filter(src=>String(src.providerId||'')!=='public_direct');
+    const anyUp=probeable.some(src=>src.health==='up');
+    const allKnownDown=probeable.length>0&&probeable.every(src=>src.health==='down');
+    if(anyUp){
+      ch.availability='up';
+      ch.lastAvailabilityCheck=nowIso;
+      ch.lastAvailableAt=nowIso;
+    }else if(allKnownDown){
+      ch.availability='down';
+      ch.lastAvailabilityCheck=nowIso;
+      ch.lastUnavailableAt=nowIso;
+    }
+  }
   saveDB();
   return {
     checked:checked.length,
@@ -1346,10 +1362,25 @@ async function api(req,res){
         reason:String(body.reason||'playback').slice(0,160),
         kind:'playback'
       });
-      if(body.ok===true)setChannelAvailability(ch,'up');
-      saveDB();
     }
-    return json(res,200,{ok:true,recorded:!!target});
+    if(body.ok===true){
+      ch.lastPlaybackSuccessAt=new Date().toISOString();
+      ch.playbackSuccesses=Number(ch.playbackSuccesses||0)+1;
+      ch.consecutivePlaybackFailures=0;
+      setChannelAvailability(ch,'up');
+    }else if(body.final===true){
+      ch.lastPlaybackFailureAt=new Date().toISOString();
+      ch.playbackFailures=Number(ch.playbackFailures||0)+1;
+      ch.consecutivePlaybackFailures=Number(ch.consecutivePlaybackFailures||0)+1;
+      // A final report means the client exhausted every candidate for this
+      // selected channel. Quarantine public-directory channels so CH +/- does
+      // not keep walking viewers through known-bad entries.
+      const directJamaica=String(ch.sourceId||'')==='public_direct'
+        ||(ch.sources||[]).some(x=>String(x.providerId||'')==='public_direct');
+      if(!directJamaica)setChannelAvailability(ch,'down');
+    }
+    saveDB();
+    return json(res,200,{ok:true,recorded:!!target,availability:ch.availability||'unknown'});
   }
 
   const resolveMatch=p.match(/^\/api\/channel\/([^/]+)\/resolve$/);
@@ -1439,10 +1470,10 @@ setInterval(async()=>{
       const last=Date.parse(p.lastSync||0)||0;
       if(now-last>=interval){try{await syncProvider(p)}catch(e){console.error('Scheduled sync failed for',p.name,e.message)}}
     }
-    if(now-lastReliabilitySweep>=10*60000){
+    if(now-lastReliabilitySweep>=5*60000){
       lastReliabilitySweep=now;
       try{
-        const sweep=await healthScan({limit:100,offset:reliabilitySweepCursor});
+        const sweep=await healthScan({limit:200,offset:reliabilitySweepCursor});
         reliabilitySweepCursor=sweep.nextOffset||0;
         const retried=await recheckUnavailableChannels(24);
         console.log('Reliability sweep:',sweep.up+' up',sweep.down+' down','of',sweep.checked,'checked; retried',retried,'quarantined channels');
