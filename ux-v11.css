@@ -1,0 +1,198 @@
+/* VELORA UX V11 — calmer consumer UI + responsive playback */
+html,body{max-width:100%;overflow-x:hidden}
+video,iframe,img{max-width:100%}
+
+.playerOverlay,.playerFrame,.v6PlayerShell{
+  width:100vw;
+  max-width:100vw;
+  height:100dvh;
+  max-height:100dvh;
+  overflow:hidden;
+}
+.playerFrame video,
+.playerFrame .archivePlayer{
+  position:absolute;
+  inset:0;
+  width:100%!important;
+  height:100%!important;
+  max-width:100vw!important;
+  max-height:100dvh!important;
+  object-fit:contain!important;
+  background:#000;
+}
+.v6PlayerShell{grid-template-rows:auto minmax(0,1fr)}
+.v6Stage{
+  position:relative;
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+  background:#000;
+}
+.v6YTMount,
+.v6YTMount iframe{
+  position:absolute;
+  inset:0;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  border:0;
+  display:block;
+}
+.livePlayerCard{
+  scroll-margin-top:78px;
+}
+.livePlayerCard video,
+.inlineLiveEmbed,
+#officialWatchPanel{
+  display:block;
+  width:100%;
+  max-width:100%;
+  aspect-ratio:16/9;
+  height:auto;
+  max-height:min(68vh,720px);
+  object-fit:contain;
+  background:#000;
+}
+.inlineLiveEmbed.hidden,
+#inlineLive.hidden{display:none!important}
+
+/* Customer screens should feel like entertainment, not a diagnostics console. */
+.v9ProviderHero{
+  overflow:hidden;
+}
+.v9ProviderHero .meta{
+  gap:7px;
+}
+.v9HomeBody .railSection{
+  padding-bottom:22px;
+}
+.rail,.v9Rail,.v6MovieRail{
+  overscroll-behavior-inline:contain;
+  scroll-snap-type:x proximity;
+}
+.card,.v9VodCard,.v6MovieCard{
+  scroll-snap-align:start;
+}
+.channelRow{
+  min-height:64px;
+}
+.channelToolbar input,
+.searchBar input,
+.v9LibraryTools input{
+  min-height:46px;
+}
+.primary,.ghost,.chip,.channelRow{
+  touch-action:manipulation;
+}
+
+@media(max-width:900px){
+  #view-live .liveLayout{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  #view-live .liveMain{order:1}
+  #view-live .channelPane{order:2;max-height:54dvh}
+  #view-live .sourceGuide{display:none}
+  #view-live .livePlayerCard{border-radius:14px}
+  #view-live .channelList{overscroll-behavior:contain}
+  #view-live .channelToolbar{padding:10px}
+  #view-live .channelCats{padding:8px 10px}
+  .v7CatalogueBanner{margin-bottom:12px}
+}
+
+@media(max-width:680px){
+  .contentPage{padding:76px 12px 26px}
+  .pageHead{margin-bottom:16px}
+  .pageHead h1{font-size:36px;line-height:1}
+  .pageHead p{font-size:12px;line-height:1.45}
+  .v9HomePage{padding-top:72px}
+  .v9ProviderHero{
+    padding:18px;
+    border-radius:18px;
+    gap:12px;
+    margin-bottom:14px;
+  }
+  .v9ProviderHero h1{font-size:36px;line-height:1;margin:5px 0 8px}
+  .v9ProviderHero p{font-size:12px;line-height:1.45;margin:0 0 12px}
+  .v9ProviderHero .heroEyebrow{font-size:9px}
+  .v9ProviderHero .meta{display:none}
+  .v9ProviderStatus{
+    min-width:0;
+    width:auto;
+    padding:9px 11px;
+    border-radius:12px;
+  }
+  .v9ProviderStatus small{display:none}
+  .v9HomeBody{margin-left:-12px;margin-right:-12px}
+  .railSection{padding-left:12px}
+  .railHead{padding-right:12px}
+  .railHead h2{font-size:17px;margin-bottom:9px}
+  .v9Rail{grid-auto-columns:42vw;padding-right:12px;gap:10px}
+  .rail{grid-auto-columns:58vw;padding-right:12px;gap:10px}
+  .v6MovieRail{grid-auto-columns:58vw}
+  .v6ChannelCard{min-width:70vw}
+  .v9VodCard b,.card b{font-size:12px}
+  .v9VodCard small,.card small{font-size:9px}
+  .v9HoverPlay{width:40px;height:40px}
+  .v9LibraryGrid,.catalogGrid{gap:9px}
+  .v9LibraryTools{position:sticky;top:58px;z-index:25;background:linear-gradient(#07080df7 82%,transparent);padding:5px 0 9px;margin-bottom:10px}
+  .v9LibraryTools .ghost{display:none}
+  .v9LibraryTools input{width:100%}
+  #view-live .contentPage{padding-left:10px;padding-right:10px}
+  #view-live .pageHead p,
+  #view-live .realSourceNote,
+  #view-live .v7CatalogueBanner small{display:none}
+  #view-live .v7CatalogueBanner{
+    padding:12px;
+    border-radius:14px;
+  }
+  #view-live .v7CatalogueBanner b{font-size:15px}
+  #view-live .v7CatalogueBanner .primary{padding:9px 11px;font-size:11px}
+  #view-live .livePlayerCard video,
+  #view-live .inlineLiveEmbed,
+  #view-live #officialWatchPanel{
+    width:100%;
+    max-height:none;
+    aspect-ratio:16/9;
+  }
+  #view-live .nowPlaying{
+    padding:11px 12px;
+    gap:8px;
+    align-items:center;
+  }
+  #view-live .nowPlaying h2{font-size:17px;margin:2px 0}
+  #view-live .nowPlaying p{font-size:10px}
+  #view-live .liveActions .ghost{padding:8px 10px;font-size:10px}
+  #view-live .channelPane{
+    max-height:58dvh;
+    border-radius:14px;
+  }
+  #view-live .channelRow{
+    grid-template-columns:40px 1fr auto;
+    padding:10px;
+    min-height:58px;
+  }
+  #view-live .channelLogo{width:38px;height:38px}
+  #view-live .channelRow small{max-width:62vw}
+  .playerTop{padding:11px 10px 58px}
+  .playerTop h2{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .v6PlayerTop{min-height:54px;padding:8px 10px}
+  .v6PlayerTop b{font-size:12px}
+  .v6PlayerTop .ghost{max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .detailsHero{min-height:390px;padding:215px 16px 20px}
+  .detailsCopy h1{font-size:34px}
+  .detailsCopy p{font-size:12px;line-height:1.45}
+}
+
+@media(max-width:430px){
+  .v9Rail{grid-auto-columns:46vw}
+  .rail{grid-auto-columns:64vw}
+  .v6MovieRail{grid-auto-columns:64vw}
+  .v9ProviderStatus{display:none}
+  .v9ProviderHero .actions{margin-top:12px;gap:7px}
+  .v9ProviderHero .actions button{padding:10px 12px;font-size:11px}
+}
