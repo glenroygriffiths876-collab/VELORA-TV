@@ -227,9 +227,23 @@ document.addEventListener('click',e=>{
 if(state.user&&document.getElementById('view-admin')?.classList.contains('active'))renderAdmin();
 
 
+function v7IsTVJ(c){
+  const key=v7ChannelNameKey(c);
+  return key==='tvj'||key==='television jamaica'||key.startsWith('tvj ');
+}
+function v7IsJamaicanChannel(c){
+  return String(c?.group||'').trim().toLowerCase()==='jamaica'
+    || String(c?.territory||'').trim().toUpperCase()==='JM';
+}
+function v7DefaultBrowseChannels(){
+  return filteredChannels().filter(c=>!v7IsJamaicanChannel(c)||v7IsTVJ(c));
+}
 function v7LiveMatches(q=''){
-  const grp=state.currentFilter||'All',needle=String(q||'').toLowerCase();
-  return filteredChannels().filter(c=>(grp==='All'||c.group===grp)&&(!needle||(c.name+' '+(c.group||'')+' '+(c.now||'')+' '+(c.sourceName||'')).toLowerCase().includes(needle)));
+  const grp=state.currentFilter||'All',needle=String(q||'').trim().toLowerCase();
+  // Searching is intentional discovery, so search can reveal the Jamaican
+  // channels hidden from the normal browse list.
+  const base=needle?filteredChannels():v7DefaultBrowseChannels();
+  return base.filter(c=>(grp==='All'||c.group===grp)&&(!needle||(c.name+' '+(c.group||'')+' '+(c.now||'')+' '+(c.sourceName||'')).toLowerCase().includes(needle)));
 }
 drawChannelList=function(q=''){
   const el=document.getElementById('channelList');if(!el)return;
@@ -243,7 +257,7 @@ drawChannelList=function(q=''){
 };
 drawGuide=function(){
   const el=document.getElementById('guideBody');if(!el)return;
-  const all=filteredChannels(),list=all.slice(0,400);
+  const all=v7DefaultBrowseChannels(),list=all.slice(0,400);
   el.innerHTML=`<div class="sourceGuideHead"><span>CHANNEL</span><span>NOW / ACCESS</span><span>SOURCE</span></div>`+
     list.map(c=>`<button class="sourceGuideRow" data-channel="${esc(c.id)}">
       <span><b>${esc(c.name)}</b><small>${esc(c.group||'')}</small></span>
@@ -306,22 +320,58 @@ filteredChannels=function(){
     if(seen.has(k))return false;
     seen.add(k);return true;
   });
-  // VELORA is currently Live-TV first. Lead with the most dependable Jamaican
-  // starting point instead of allowing upstream feed order to choose the first
-  // impression. Keep CVM available lower in the guide while its source remains
-  // less reliable.
-  const livePriority=x=>{
+  // VELORA Live browse order:
+  // 1) TVJ is always first.
+  // 2) Recently healthy/working channels outrank uncertain/degraded ones.
+  // 3) High-demand networks/categories and the viewer's recent channels get a
+  //    popularity boost. Alphabetical order is only the final tie-breaker.
+  const popularityPatterns=[
+    [/\bespn\b/i,980],[/\bcnn\b/i,960],[/\bbbc\s*news\b/i,950],
+    [/\bfox\s*news\b/i,940],[/\bnbc\b/i,930],[/\babc\b/i,925],
+    [/\bcbs\b/i,920],[/\btnt\b/i,910],[/\btbs\b/i,900],
+    [/\ba\s*&\s*e\b|\ba and e\b/i,895],[/\bdiscovery\b/i,890],
+    [/\bhistory\b/i,885],[/national geographic|\bnat geo\b/i,880],
+    [/\bdisney\b/i,870],[/nickelodeon|\bnick\b/i,865],
+    [/cartoon network/i,860],[/\bmtv\b/i,850],[/\bbet\b/i,845],
+    [/\bamc\b/i,840],[/\bfx\b/i,835],[/hallmark/i,825],
+    [/lifetime/i,820],[/food network/i,815],[/\bhgtv\b/i,810],
+    [/\btlc\b/i,805],[/\bbravo\b/i,800],[/usa network/i,795],
+    [/paramount/i,790],[/weather channel/i,780]
+  ];
+  const recentIds=Array.isArray(state.history)?state.history:[];
+  const generalGroupScore=x=>{
+    const g=String(x.group||'').toLowerCase();
+    if(/news/.test(g))return 260;
+    if(/sport/.test(g))return 250;
+    if(/entertainment|general/.test(g))return 230;
+    if(/movie|film/.test(g))return 220;
+    if(/documentary/.test(g))return 205;
+    if(/kids|children/.test(g))return 195;
+    if(/music/.test(g))return 185;
+    return 120;
+  };
+  const healthScore=x=>{
+    if(String(x.availability||'').toLowerCase()==='up')return 1800;
+    if(String(x.availability||'').toLowerCase()==='down')return -2400;
+    const health=(x.sources||[]).map(s=>String(s.health||'').toLowerCase());
+    if(health.includes('up'))return 1500;
+    if(health.length&&health.every(h=>h==='down'))return -2200;
+    if(x.official)return 500;
+    return 0;
+  };
+  const popularityScore=x=>{
     const key=v7ChannelNameKey(x);
-    const jamaica=String(x.group||'').toLowerCase()==='jamaica';
-    if(key==='tvj'||key==='television jamaica'||key.startsWith('tvj '))return 0;
-    if(jamaica&&!key.includes('cvm'))return 10;
-    if(!jamaica)return 30;
-    if(key.includes('cvm'))return 90;
-    return 40;
+    if(key==='tvj'||key==='television jamaica'||key.startsWith('tvj '))return 1000000;
+    let score=healthScore(x)+generalGroupScore(x);
+    const hay=(String(x.name||'')+' '+String(x.group||'')).trim();
+    for(const [rx,points] of popularityPatterns){if(rx.test(hay)){score+=points;break}}
+    const recent=recentIds.indexOf(x.id);
+    if(recent>=0)score+=Math.max(40,360-recent*20);
+    return score;
   };
   return unique
-    .map((x,i)=>({x,i,p:livePriority(x)}))
-    .sort((a,b)=>a.p-b.p||a.i-b.i)
+    .map((x,i)=>({x,i,p:popularityScore(x)}))
+    .sort((a,b)=>b.p-a.p||String(a.x.name||'').localeCompare(String(b.x.name||''))||a.i-b.i)
     .map(v=>v.x);
 };
 
