@@ -18,7 +18,7 @@ renderLive = function(){
     </div><div class="sourceGuide" id="guideBody"></div></div></div>
   </div>`;
   drawChannelList(); drawGuide();
-  if(liveChannels[0])selectChannel(liveChannels[0].id,false);
+  if(liveChannels[0]&&document.getElementById('view-live')?.classList.contains('active'))selectChannel(liveChannels[0].id,true);
 };
 
 drawChannelList = function(q=''){
