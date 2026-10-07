@@ -368,7 +368,12 @@ async function v7ResolveCandidates(c){
     try{
       const d=await v7Request('/api/channel/'+encodeURIComponent(c.id)+'/resolve',{headers:{}});
       const probed=(d.urls||[]).map(v7MediaUrl).filter(Boolean);
-      return [...new Set([...local,...probed])];
+      // Direct Jamaica feeds may work from the viewer's network even when the
+      // backend probe is geo-blocked, so preserve client-direct order there.
+      // For normal catalogue channels, honor the backend's learned reliability
+      // ranking before falling back to the original playlist URL.
+      const ordered=(c.clientUrls||[]).length?[...local,...probed]:[...probed,...local];
+      return [...new Set(ordered)];
     }catch{
       // A US Railway probe can fail for a Jamaica-geo stream. Do not discard
       // client-direct candidates just because the backend cannot see them.
@@ -436,6 +441,13 @@ function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
   },3500);
 }
 const V7_NATIVE_ATTEMPTS=new Set();
+function v7ReportPlayback(c,url,ok,reason=''){
+  if(!c?.id||!url)return;
+  v7Request('/api/channel/'+encodeURIComponent(c.id)+'/playback-report',{
+    method:'POST',
+    body:JSON.stringify({url,ok:!!ok,reason:String(reason||'').slice(0,120)})
+  }).catch(()=>{});
+}
 function v7NativeAvailable(){
   try{return !!(window.VeloraNative&&window.VeloraNative.isAvailable&&window.VeloraNative.isAvailable())}catch{return false}
 }
@@ -485,6 +497,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
         settled=true;cleanupTimers();
         v.classList.remove('hidden');
         if(panel)panel.classList.add('hidden');
+        v7ReportPlayback(c,url,true,'video-frame');
         return;
       }
       verifyStarted=false;
@@ -504,6 +517,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
             settled=true;cleanupTimers();
             v.classList.remove('hidden');
             if(panel)panel.classList.add('hidden');
+            v7ReportPlayback(c,url,true,'video-frame');
           }
         });
       }catch{}
@@ -517,6 +531,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
     settled=true;cleanupTimers();
     if(state.hls){try{state.hls.destroy()}catch{}state.hls=null}
     try{v.pause();v.removeAttribute('src');v.load()}catch{}
+    v7ReportPlayback(c,url,false,'no-compatible-video');
     if(index+1<urls.length){
       setTimeout(()=>v7PlayLiveDirect(c,urls,autoplay,index+1,token),100);
     }else if(v7TryNativePlayer(c,urls,token)){
