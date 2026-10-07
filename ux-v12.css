@@ -107,3 +107,5 @@
   .veloraLiveHero .actions{display:grid;grid-template-columns:1fr}
   .veloraLiveHero .actions button{width:100%}
 }
+
+.mainnav button small{margin-left:4px;padding:2px 4px;border-radius:5px;background:#ffffff0d;color:#8e98aa;font-size:7px;letter-spacing:.08em;text-transform:uppercase;vertical-align:1px}
