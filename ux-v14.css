@@ -1,0 +1,102 @@
+/* VELORA UX V14 — Live TV remote */
+#view-live .liveLayout{
+  grid-template-columns:minmax(390px,430px) minmax(0,1fr);
+}
+#view-live .channelPane{min-width:0}
+#view-live .veloraChannelRemoteLayout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 112px;
+  flex:1;
+  min-height:0;
+  overflow:hidden;
+}
+#view-live .veloraChannelColumn{
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+#view-live .veloraChannelColumn .channelCats{flex:0 0 auto}
+#view-live .veloraChannelColumn .channelList{
+  min-height:0;
+  overflow-y:auto;
+  flex:1;
+}
+#view-live .veloraLiveRemote{
+  margin:9px 9px 9px 0;
+  padding:9px 8px 10px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:20px;
+  background:linear-gradient(160deg,#1a1e28,#0d1017 62%,#090b10);
+  box-shadow:0 14px 34px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.05);
+  align-self:start;
+  user-select:none;
+}
+#view-live .veloraRemoteTop{
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  color:#80899a;font-size:7px;letter-spacing:.15em;margin:0 0 8px
+}
+#view-live .veloraRemoteDot{
+  width:5px;height:5px;border-radius:50%;background:#ff4668;box-shadow:0 0 8px #ff466870
+}
+#view-live .veloraLiveRemote button{
+  border:1px solid rgba(255,255,255,.09);
+  color:#f7f7f9;
+  background:linear-gradient(180deg,#242a36,#171b24);
+  box-shadow:0 3px 8px #0007,inset 0 1px 0 rgba(255,255,255,.06);
+  cursor:pointer;
+  touch-action:manipulation;
+}
+#view-live .veloraLiveRemote button:active{transform:translateY(1px);box-shadow:0 1px 3px #0008}
+#view-live .veloraRemoteChannel{
+  display:grid;
+  grid-template-rows:44px 20px 44px;
+  gap:3px;
+}
+#view-live .veloraRemoteChannel button{
+  width:100%;border-radius:15px;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+}
+#view-live .veloraRemoteChannel button span{font-size:8px;color:#9ca5b5;font-weight:900}
+#view-live .veloraRemoteChannel button b{font-size:14px}
+#view-live .veloraRemoteChannelLabel{
+  display:grid;place-items:center;
+  font-size:7px;letter-spacing:.12em;color:#626b7b;font-weight:900;
+}
+#view-live .veloraRemoteVolume{
+  margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07);text-align:center
+}
+#view-live .veloraRemoteVolume>span{
+  display:block;font-size:7px;letter-spacing:.15em;color:#7d8798;font-weight:900;margin-bottom:6px
+}
+#view-live .veloraRemoteVolume>div{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px}
+#view-live .veloraRemoteVolume button{
+  height:31px;border-radius:10px;padding:0;font-size:14px;font-weight:900
+}
+#view-live .veloraRemoteVolume button[data-velora-remote="mute"]{font-size:10px}
+#view-live .veloraRemoteVolume button.active{background:#492436;color:#ffd7e4}
+#view-live #veloraRemoteVolumeLabel{
+  display:block;margin-top:5px;font-size:8px;color:#727b8b;font-weight:800
+}
+#view-live .veloraRemoteFullscreen{
+  width:100%;height:36px;border-radius:12px;margin-top:9px;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  font-size:13px;font-weight:900
+}
+#view-live .veloraRemoteFullscreen span{font-size:7px;letter-spacing:.08em;color:#b8bfcb}
+#view-live .veloraLegacyFullscreenHidden{display:none!important}
+
+@media(max-width:900px){
+  #view-live .liveLayout{display:flex;grid-template-columns:none}
+  #view-live .veloraChannelRemoteLayout{grid-template-columns:minmax(0,1fr) 116px}
+}
+@media(max-width:480px){
+  #view-live .veloraChannelRemoteLayout{grid-template-columns:minmax(0,1fr) 104px}
+  #view-live .veloraLiveRemote{margin:7px 7px 7px 0;padding:8px 7px;border-radius:17px}
+  #view-live .veloraRemoteChannel{grid-template-rows:40px 18px 40px}
+  #view-live .veloraRemoteVolume button{height:29px}
+  #view-live .channelCats{padding-right:4px}
+  #view-live .channelRow{padding-left:8px;padding-right:6px}
+  #view-live .channelRow small{max-width:38vw}
+}
