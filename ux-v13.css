@@ -1,0 +1,26 @@
+/* VELORA UX V13 — gated 18+ content */
+.veloraAdultPanel{position:relative;overflow:hidden}
+.veloraAdultPanel:after{content:"18+";position:absolute;right:-14px;bottom:-28px;font-size:112px;font-weight:950;color:#ffffff05;pointer-events:none}
+.veloraAdultHead{display:flex;gap:12px;align-items:flex-start;margin-bottom:9px}
+.veloraAdultHead h2{margin:2px 0 5px}.veloraAdultHead p{margin:0}
+.veloraAdultBadge{width:56px;height:56px;border-radius:17px;display:grid;place-items:center;background:linear-gradient(135deg,#7a1f45,#301124);border:1px solid #ff6f9e45;color:#ffd6e5;font-size:18px;font-weight:950;box-shadow:0 14px 35px #0005}
+.veloraAdultBadge.small{width:42px;height:42px;border-radius:12px;font-size:14px;flex:0 0 auto}
+.veloraAdultStatus{padding:5px 8px;border-radius:7px;background:#ffffff0b;color:#aab2c1;font-size:11px}
+.veloraAdultStatus.on{background:#7a1f4530;color:#ffc1d5}
+.veloraAdultSettingsActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+.veloraAdultHint{display:block;margin-top:12px;color:#778194;line-height:1.45}
+.veloraAdultModal{position:fixed;inset:0;z-index:420;display:none;place-items:center;padding:18px;background:#020308e8;backdrop-filter:blur(18px)}
+.veloraAdultModal.on{display:grid}
+.veloraAdultCard{width:min(460px,96vw);position:relative;padding:28px;border-radius:24px;border:1px solid #ffffff12;background:linear-gradient(145deg,#18101a,#090b12);box-shadow:0 35px 100px #000c}
+.veloraAdultClose{position:absolute;right:15px;top:15px}
+.veloraAdultCard h2{font-size:34px;margin:13px 0 8px;letter-spacing:-.04em}
+.veloraAdultCard p{color:#aab2c1;line-height:1.55}
+.veloraAdultCard input{width:100%;padding:14px 15px;margin-top:10px;border:1px solid #ffffff16;border-radius:12px;background:#0b0d14;color:#fff;outline:none;font-size:18px;letter-spacing:.2em;text-align:center}
+.veloraAdultCard input:focus{border-color:#c04f78}
+.veloraAdultActions{display:flex;gap:9px;margin-top:16px}.veloraAdultActions>*{flex:1}
+.veloraAdultCard>small{display:block;text-align:center;color:#70798b;line-height:1.45;margin-top:14px}
+@media(max-width:680px){
+  .veloraAdultCard{padding:22px 18px;border-radius:20px}
+  .veloraAdultSettingsActions{display:grid;grid-template-columns:1fr}
+  .veloraAdultSettingsActions button{width:100%}
+}
