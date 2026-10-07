@@ -29,16 +29,10 @@
 
   function renderLiveFirstHome(){
     const el=document.getElementById('view-home');if(!el)return;
-    const channels=typeof filteredChannels==='function'?filteredChannels():[];
-    const featured=channels.slice(0,18);
     el.innerHTML=`<div class="contentPage veloraLiveHome">
       ${privateNotice()}
       ${liveHero()}
       <div class="veloraLiveHomeBody">
-        <section class="railSection veloraPrimaryRail">
-          <div class="railHead"><div><span class="veloraSectionKicker">ON NOW</span><h2>Live TV</h2></div><button data-view="live">Open full guide ›</button></div>
-          <div class="rail">${featured.map(liveCard).join('')}</div>
-        </section>
         <section class="veloraComingStrip">
           <div><span class="veloraSectionKicker">IN DEVELOPMENT</span><h2>Movies & Series</h2><p>We’re working on a better catalogue and more reliable ways to add newer movies and series. Rather than show an unfinished library, this area will stay intentionally simple until it is ready.</p></div>
           <button class="ghost" data-view="movies">See progress</button>
