@@ -414,37 +414,12 @@ const V7_SEARCH_ATTEMPTS=new Map();
 function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
   if(!c||token!==V7_SELECTION_TOKEN)return;
   clearTimeout(V7_RETRY_TIMER);
-  const attempt=(V7_SEARCH_ATTEMPTS.get(token)||0)+1;
-  V7_SEARCH_ATTEMPTS.set(token,attempt);
   v7ResetInline();
 
-  // Do not leave viewers staring at an endless spinner. CVM in particular is
-  // retained in the guide for testing, but a failed source should fail cleanly.
-  const maxAttempts=v7ChannelNameKey(c).includes('cvm')?1:2;
-  if(attempt>maxAttempts){
-    const msg=v7ChannelNameKey(c).includes('cvm')
-      ? 'CVM is not reliably available in VELORA right now. VELORA will not switch channels automatically — please choose another channel.'
-      : 'This channel is not available right now. VELORA will not switch channels automatically — please choose another channel.';
-    v7ShowLiveStatus(c,c.name,msg,false);
-    return;
-  }
-
-  v7ShowLiveStatus(c,c.name,'Velora is checking another live source…',true);
-  V7_RETRY_TIMER=setTimeout(async()=>{
-    if(token!==V7_SELECTION_TOKEN)return;
-    const urls=await v7ResolveCandidates(c);
-    if(token!==V7_SELECTION_TOKEN)return;
-    if(urls.length)return v7PlayLiveDirect(c,urls,true,0,token);
-
-    try{await v7LoadSnapshot(false)}catch{}
-    if(token!==V7_SELECTION_TOKEN)return;
-    const refreshed=filteredChannels().find(x=>v7ChannelNameKey(x)===v7ChannelNameKey(c))||c;
-    const retryUrls=await v7ResolveCandidates(refreshed);
-    if(token!==V7_SELECTION_TOKEN)return;
-    if(retryUrls.length)return v7PlayLiveDirect(refreshed,retryUrls,true,0,token);
-
-    return v7KeepSearching(refreshed,token);
-  },3500);
+  const msg=v7ChannelNameKey(c).includes('cvm')
+    ? 'CVM is not available right now. Please choose another channel when you are ready.'
+    : 'This channel is not available right now. Please choose another channel when you are ready.';
+  v7ShowLiveStatus(c,c.name,msg,false);
 }
 const V7_NATIVE_ATTEMPTS=new Set();
 function v7ReportPlayback(c,url,ok,reason=''){
@@ -612,8 +587,8 @@ v5OpenChannel=function(c,full=false){
   }
 };
 
-// Never leave a live-TV viewer on the V6 provider error surface.
-// If an embed fails, keep that channel selected and continue searching for another source.
+// Never change channels automatically.
+// If an embed fails, keep the selected channel in place and show its unavailable state.
 if(typeof v6Fail==='function'){
   const v7OriginalV6Fail=v6Fail;
   v6Fail=function(title,message,publisherUrl){
