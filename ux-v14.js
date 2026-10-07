@@ -70,7 +70,9 @@
     const next=(index+delta+ids.length)%ids.length;
     selectChannel(ids[next],true);
     setTimeout(()=>{
-      document.querySelector(`#channelList [data-channel="${CSS.escape(ids[next])}"]`)?.scrollIntoView({behavior:'smooth',block:'nearest'});
+      [...document.querySelectorAll('#channelList [data-channel]')]
+        .find(el=>el.dataset.channel===ids[next])
+        ?.scrollIntoView({behavior:'smooth',block:'nearest'});
     },80);
   }
 
