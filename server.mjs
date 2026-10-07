@@ -988,15 +988,48 @@ function channelPublicUpstreams(ch){
   for(const src of ch.sources||[])add(src.upstreamUrl||(/^https?:\/\//i.test(src.url||'')?src.url:''));
   return urls;
 }
+function setChannelAvailability(ch,status){
+  if(!ch)return;
+  const now=new Date().toISOString();
+  const changed=ch.availability!==status;
+  ch.availability=status;
+  ch.lastAvailabilityCheck=now;
+  if(status==='up')ch.lastAvailableAt=now;
+  else ch.lastUnavailableAt=now;
+  if(changed)saveDB();
+}
 async function resolvePublicChannel(ch){
   const urls=await discoverDynamicChannelSources(ch);
-  if(!urls.length)return [];
+  if(!urls.length){
+    setChannelAvailability(ch,'down');
+    return [];
+  }
   const ranked=[...urls].sort((a,b)=>reliabilityScore(b)-reliabilityScore(a));
   const results=await pooled(ranked,Math.min(6,ranked.length),async u=>({url:u,ok:await probeStream(u,4500)}));
-  return results
+  const good=results
     .filter(x=>x.ok)
-    .sort((a,b)=>reliabilityScore(b.url)-reliabilityScore(a.url))
-    .map(x=>relayPath(x.url));
+    .sort((a,b)=>reliabilityScore(b.url)-reliabilityScore(a.url));
+  setChannelAvailability(ch,good.length?'up':'down');
+  return good.map(x=>relayPath(x.url));
+}
+async function recheckUnavailableChannels(limit=24){
+  const targets=db.channels
+    .filter(ch=>ch.availability==='down'&&(
+      !ch.lastAvailabilityCheck ||
+      Date.now()-(Date.parse(ch.lastAvailabilityCheck)||0)>8*60000
+    ))
+    .slice(0,limit);
+  for(const ch of targets){
+    try{await resolvePublicChannel(ch)}catch{}
+  }
+  return targets.length;
+}
+async function warmReportedProblemChannels(){
+  const targets=db.channels.filter(ch=>/\ba\s*&\s*e\b/i.test(String(ch.name||''))).slice(0,12);
+  for(const ch of targets){
+    try{await resolvePublicChannel(ch)}catch{}
+  }
+  if(targets.length)console.log('Priority reliability check completed for A&E family:',targets.length);
 }
 function canonicalPlaybackReportUrl(raw,ch){
   try{
@@ -1313,6 +1346,7 @@ async function api(req,res){
         reason:String(body.reason||'playback').slice(0,160),
         kind:'playback'
       });
+      if(body.ok===true)setChannelAvailability(ch,'up');
       saveDB();
     }
     return json(res,200,{ok:true,recorded:!!target});
@@ -1390,7 +1424,7 @@ const server=http.createServer(async(req,res)=>{
     console.error(e);if(!res.headersSent)return json(res,500,{error:String(e.message||e)});res.end();
   }
 });
-server.listen(PORT,HOST,()=>{console.log('Velora Ingest V7 listening on http://'+HOST+':'+PORT);setTimeout(async()=>{try{await bootstrapPublicFeeds();const graph=await buildUnifiedMediaGraph(true);console.log('Unified media graph ready:',JSON.stringify(graph.counts))}catch(e){console.error('Startup graph warm failed',e)}},750)});
+server.listen(PORT,HOST,()=>{console.log('Velora Ingest V7 listening on http://'+HOST+':'+PORT);setTimeout(async()=>{try{await bootstrapPublicFeeds();const graph=await buildUnifiedMediaGraph(true);console.log('Unified media graph ready:',JSON.stringify(graph.counts));await warmReportedProblemChannels()}catch(e){console.error('Startup graph warm failed',e)}},750)});
 
 let reliabilitySweepCursor=0;
 let lastReliabilitySweep=0;
@@ -1410,7 +1444,8 @@ setInterval(async()=>{
       try{
         const sweep=await healthScan({limit:100,offset:reliabilitySweepCursor});
         reliabilitySweepCursor=sweep.nextOffset||0;
-        console.log('Reliability sweep:',sweep.up+' up',sweep.down+' down','of',sweep.checked,'checked');
+        const retried=await recheckUnavailableChannels(24);
+        console.log('Reliability sweep:',sweep.up+' up',sweep.down+' down','of',sweep.checked,'checked; retried',retried,'quarantined channels');
       }catch(e){console.error('Reliability sweep failed',e.message)}
     }
   }finally{schedulerBusy=false}
