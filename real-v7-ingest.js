@@ -295,11 +295,28 @@ filteredChannels=function(){
   const directKeys=new Set(bulk.map(v7ChannelNameKey).filter(Boolean));
   const fallbackOfficial=V5_OFFICIAL_CHANNELS.filter(x=>!directKeys.has(v7ChannelNameKey(x)));
   const all=[...bulk,...fallbackOfficial],seen=new Set();
-  return all.filter(x=>{
+  const unique=all.filter(x=>{
     const k=v7ChannelNameKey(x)||String(x.epgId||x.id).toLowerCase();
     if(seen.has(k))return false;
     seen.add(k);return true;
   });
+  // VELORA is currently Live-TV first. Lead with the most dependable Jamaican
+  // starting point instead of allowing upstream feed order to choose the first
+  // impression. Keep CVM available lower in the guide while its source remains
+  // less reliable.
+  const livePriority=x=>{
+    const key=v7ChannelNameKey(x);
+    const jamaica=String(x.group||'').toLowerCase()==='jamaica';
+    if(key==='tvj'||key==='television jamaica'||key.startsWith('tvj '))return 0;
+    if(jamaica&&!key.includes('cvm'))return 10;
+    if(!jamaica)return 30;
+    if(key.includes('cvm'))return 90;
+    return 40;
+  };
+  return unique
+    .map((x,i)=>({x,i,p:livePriority(x)}))
+    .sort((a,b)=>a.p-b.p||a.i-b.i)
+    .map(v=>v.x);
 };
 
 function v7CatalogueSummary(){
@@ -382,18 +399,32 @@ function v7ShowLiveStatus(c,title,message,busy=false){
     ${busy?'<div class="v7MiniSpinner"></div>':''}
   </div>`;
 }
+const V7_SEARCH_ATTEMPTS=new Map();
 function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
   if(!c||token!==V7_SELECTION_TOKEN)return;
   clearTimeout(V7_RETRY_TIMER);
+  const attempt=(V7_SEARCH_ATTEMPTS.get(token)||0)+1;
+  V7_SEARCH_ATTEMPTS.set(token,attempt);
   v7ResetInline();
-  v7ShowLiveStatus(c,c.name,'Velora is searching for another live source…',true);
+
+  // Do not leave viewers staring at an endless spinner. CVM in particular is
+  // retained in the guide for testing, but a failed source should fail cleanly.
+  const maxAttempts=v7ChannelNameKey(c).includes('cvm')?1:2;
+  if(attempt>maxAttempts){
+    const msg=v7ChannelNameKey(c).includes('cvm')
+      ? 'CVM is not reliably available in VELORA right now. Please choose TVJ or another channel.'
+      : 'This channel is not available right now. Please choose another channel.';
+    v7ShowLiveStatus(c,c.name,msg,false);
+    return;
+  }
+
+  v7ShowLiveStatus(c,c.name,'Velora is checking another live source…',true);
   V7_RETRY_TIMER=setTimeout(async()=>{
     if(token!==V7_SELECTION_TOKEN)return;
     const urls=await v7ResolveCandidates(c);
     if(token!==V7_SELECTION_TOKEN)return;
     if(urls.length)return v7PlayLiveDirect(c,urls,true,0,token);
 
-    // Refresh the backend snapshot as well, in case a new upstream appeared.
     try{await v7LoadSnapshot(false)}catch{}
     if(token!==V7_SELECTION_TOKEN)return;
     const refreshed=filteredChannels().find(x=>v7ChannelNameKey(x)===v7ChannelNameKey(c))||c;
@@ -402,7 +433,7 @@ function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
     if(retryUrls.length)return v7PlayLiveDirect(refreshed,retryUrls,true,0,token);
 
     return v7KeepSearching(refreshed,token);
-  },6500);
+  },3500);
 }
 function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN){
   if(token!==V7_SELECTION_TOKEN)return;
@@ -454,6 +485,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
 selectChannel=async function(id,autoplay=true){
   const c=filteredChannels().find(x=>x.id===id);if(!c)return;
   const token=++V7_SELECTION_TOKEN;
+  V7_SEARCH_ATTEMPTS.clear();
   clearTimeout(V7_RETRY_TIMER);
   state.currentChannel=c;
   drawChannelList(document.getElementById('channelSearch')?.value||'');
