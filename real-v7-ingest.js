@@ -423,8 +423,8 @@ function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
   const maxAttempts=v7ChannelNameKey(c).includes('cvm')?1:2;
   if(attempt>maxAttempts){
     const msg=v7ChannelNameKey(c).includes('cvm')
-      ? 'CVM is not reliably available in VELORA right now. Please choose TVJ or another channel.'
-      : 'This channel is not available right now. Please choose another channel.';
+      ? 'CVM is not reliably available in VELORA right now. VELORA will not switch channels automatically — please choose another channel.'
+      : 'This channel is not available right now. VELORA will not switch channels automatically — please choose another channel.';
     v7ShowLiveStatus(c,c.name,msg,false);
     return;
   }
