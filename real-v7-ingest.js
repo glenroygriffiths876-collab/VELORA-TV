@@ -275,9 +275,15 @@ function v7ChannelNameKey(x){
     .replace(/\b(2160p|1080p|720p|576p|540p|480p|360p|4k|uhd|fhd|hd|sd)\b/g,' ')
     .replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
 }
+function v7ChannelQuarantined(x){
+  if(String(x?.availability||'')!=='down')return false;
+  const checked=Date.parse(x?.lastAvailabilityCheck||0)||0;
+  return !!checked && Date.now()-checked<30*60000;
+}
 filteredChannels=function(){
   const officialByKey=new Map(V5_OFFICIAL_CHANNELS.map(x=>[v7ChannelNameKey(x),x]));
   const bulk=state.channels
+    .filter(x=>!v7ChannelQuarantined(x))
     .filter(x=>v7IsPublicDirectoryItem(x)||rightsActive(x))
     .map(x=>{
       const off=officialByKey.get(v7ChannelNameKey(x));
