@@ -19,7 +19,6 @@
         <p>VELORA is currently focused on making live television fast, simple and dependable across phone, tablet and TV.</p>
         <div class="actions">
           <button class="primary veloraLiveCTA" data-view="live">◉ Watch Live TV</button>
-          <button class="ghost" data-view="search">⌕ Find a channel</button>
         </div>
         <div class="veloraLiveStats"><b>${count.toLocaleString()}</b><span>channels currently indexed</span></div>
       </div>
