@@ -239,8 +239,27 @@ function v7IsJamaicanChannel(c){
     || territory==='JM'
     || /(^|\b)jamaica(n)?(\b|$)/i.test(source);
 }
+function v7ChannelRecentlyHealthy(c){
+  if(v7IsTVJ(c))return true;
+  if(V7_SESSION_FAILED_IDS.has(c.id))return false;
+  const now=Date.now();
+  const availAt=Date.parse(c.lastAvailabilityCheck||0)||0;
+  if(String(c.availability||'').toLowerCase()==='up'&&(!availAt||now-availAt<24*3600000))return true;
+  const playbackAt=Date.parse(c.lastPlaybackSuccessAt||0)||0;
+  if(playbackAt&&now-playbackAt<7*24*3600000)return true;
+  return (c.sources||[]).some(src=>{
+    const checked=Date.parse(src.lastChecked||0)||0;
+    return String(src.health||'').toLowerCase()==='up'&&(!checked||now-checked<24*3600000);
+  });
+}
 function v7DefaultBrowseChannels(){
-  return filteredChannels().filter(c=>!v7IsJamaicanChannel(c)||v7IsTVJ(c));
+  const allowed=filteredChannels().filter(c=>(!v7IsJamaicanChannel(c)||v7IsTVJ(c))&&!V7_SESSION_FAILED_IDS.has(c.id));
+  const knownGood=allowed.filter(v7ChannelRecentlyHealthy);
+  // If health data is still warming up after a deployment, keep a very small
+  // popularity-ranked fallback instead of exposing the whole unverified pool.
+  if(knownGood.length>=12)return knownGood;
+  const fallback=allowed.filter(c=>!v7ChannelRecentlyHealthy(c)).slice(0,Math.max(0,12-knownGood.length));
+  return [...knownGood,...fallback];
 }
 function v7LiveMatches(q=''){
   const grp=state.currentFilter||'All',needle=String(q||'').trim().toLowerCase();
@@ -286,6 +305,7 @@ function v7IsPublicDirectoryItem(x){
 }
 let V7_SELECTION_TOKEN=0;
 let V7_RETRY_TIMER=null;
+const V7_SESSION_FAILED_IDS=new Set();
 const v7OriginalFilteredChannels=filteredChannels;
 function v7ChannelNameKey(x){
   return String(x?.name||'').toLowerCase()
@@ -470,17 +490,25 @@ function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
   clearTimeout(V7_RETRY_TIMER);
   v7ResetInline();
 
+  V7_SESSION_FAILED_IDS.add(c.id);
+  c.availability='down';
+  c.lastAvailabilityCheck=new Date().toISOString();
+  v7ReportPlayback(c,c.url||'',false,'channel-unavailable',true);
+
+  const row=[...document.querySelectorAll('#channelList [data-channel]')].find(el=>el.dataset.channel===c.id);
+  if(row){row.classList.add('v7SessionUnavailable');row.setAttribute('aria-disabled','true')}
+
   const msg=v7ChannelNameKey(c).includes('cvm')
     ? 'CVM is not available right now. Please choose another channel when you are ready.'
     : 'This channel is not available right now. Please choose another channel when you are ready.';
   v7ShowLiveStatus(c,c.name,msg,false);
 }
 const V7_NATIVE_ATTEMPTS=new Set();
-function v7ReportPlayback(c,url,ok,reason=''){
-  if(!c?.id||!url)return;
+function v7ReportPlayback(c,url,ok,reason='',final=false){
+  if(!c?.id)return;
   v7Request('/api/channel/'+encodeURIComponent(c.id)+'/playback-report',{
     method:'POST',
-    body:JSON.stringify({url,ok:!!ok,reason:String(reason||'').slice(0,120)})
+    body:JSON.stringify({url:url||c.url||'',ok:!!ok,reason:String(reason||'').slice(0,120),final:!!final})
   }).catch(()=>{});
 }
 function v7NativeAvailable(){
@@ -532,6 +560,10 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
         settled=true;cleanupTimers();
         v.classList.remove('hidden');
         if(panel)panel.classList.add('hidden');
+        V7_SESSION_FAILED_IDS.delete(c.id);
+        c.availability='up';
+        c.lastAvailabilityCheck=new Date().toISOString();
+        c.lastPlaybackSuccessAt=new Date().toISOString();
         v7ReportPlayback(c,url,true,'video-frame');
         return;
       }
@@ -552,7 +584,11 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
             settled=true;cleanupTimers();
             v.classList.remove('hidden');
             if(panel)panel.classList.add('hidden');
-            v7ReportPlayback(c,url,true,'video-frame');
+            V7_SESSION_FAILED_IDS.delete(c.id);
+        c.availability='up';
+        c.lastAvailabilityCheck=new Date().toISOString();
+        c.lastPlaybackSuccessAt=new Date().toISOString();
+        v7ReportPlayback(c,url,true,'video-frame');
           }
         });
       }catch{}
