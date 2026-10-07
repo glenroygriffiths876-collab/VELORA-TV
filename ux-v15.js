@@ -57,7 +57,7 @@
         <section class="veloraLiveSearchShell" id="veloraLiveSearchShell">
           <div class="veloraSearchBar">
             <div class="veloraSearchIcon">⌕</div>
-            <input id="channelSearch" autocomplete="off" inputmode="search" placeholder="Search channels…">
+            <input id="channelSearch" type="search" name="velora-channel-search" role="searchbox" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" aria-autocomplete="none" data-form-type="other" data-lpignore="true" data-1p-ignore placeholder="Search channels…">
             <button class="veloraSearchCancel" id="veloraSearchCancel" type="button">Cancel</button>
           </div>
           <div class="veloraSearchHint" id="veloraSearchHint">Tap the search bar to browse or find a channel.</div>
@@ -99,8 +99,20 @@
   };
 
   function channelIds(){
-    const list=browseChannels(document.getElementById('channelSearch')?.value||'');
-    return list.map(c=>c.id).filter(Boolean);
+    // Remote CH+/CH− must behave like a TV tuner: cycle only through channels
+    // VELORA has evidence are currently working. Do not let a search query
+    // change the remote's channel loop, and never include session-failed rows.
+    const list=browseChannels('');
+    const working=list.filter(c=>{
+      const row=[...document.querySelectorAll('#channelList [data-channel]')]
+        .find(el=>el.dataset.channel===c.id);
+      if(row?.classList.contains('v7SessionUnavailable')||row?.getAttribute('aria-disabled')==='true')return false;
+      if(typeof v7ChannelRecentlyHealthy==='function')return v7ChannelRecentlyHealthy(c);
+      const availability=String(c.availability||'').toLowerCase();
+      const sourceHealth=(c.sources||[]).map(s=>String(s.health||'').toLowerCase());
+      return availability==='up'||sourceHealth.includes('up');
+    });
+    return working.map(c=>c.id).filter(Boolean);
   }
   function changeChannel(delta){
     const ids=channelIds();if(!ids.length)return toast('No channels available.');
