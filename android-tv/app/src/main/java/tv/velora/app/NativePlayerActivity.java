@@ -35,7 +35,7 @@ public class NativePlayerActivity extends Activity {
 
         streamUrl = getIntent().getStringExtra("streamUrl");
         title = getIntent().getStringExtra("title");
-        if (title == null || title.isBlank()) title = "VELORA Live";
+        if (title == null || title.trim().isEmpty()) title = "VELORA Live";
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
@@ -65,7 +65,7 @@ public class NativePlayerActivity extends Activity {
 
         setContentView(root);
 
-        if (streamUrl == null || streamUrl.isBlank()) {
+        if (streamUrl == null || streamUrl.trim().isEmpty()) {
             showError("No stream URL was supplied.");
             return;
         }
