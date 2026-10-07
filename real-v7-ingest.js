@@ -447,6 +447,40 @@ function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
   },3500);
 }
 const V7_NATIVE_ATTEMPTS=new Set();
+const V7_FAMILY_TRIED=new Map();
+function v7ChannelFamilyKey(c){
+  const n=String(c?.name||'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(/^a\s*&\s*e\b/.test(n)||/^a\s+and\s+e\b/.test(n))return 'a&e';
+  return '';
+}
+async function v7TryFamilyFallback(c,token=V7_SELECTION_TOKEN){
+  if(!c||token!==V7_SELECTION_TOKEN)return false;
+  const family=v7ChannelFamilyKey(c);
+  if(!family)return false;
+
+  const tried=V7_FAMILY_TRIED.get(token)||new Set();
+  tried.add(c.id);
+  V7_FAMILY_TRIED.set(token,tried);
+
+  const siblings=filteredChannels().filter(x=>x.id!==c.id&&v7ChannelFamilyKey(x)===family&&!tried.has(x.id));
+  for(const alt of siblings){
+    if(token!==V7_SELECTION_TOKEN)return true;
+    tried.add(alt.id);
+    const urls=await v7ResolveCandidates(alt);
+    if(!urls.length)continue;
+
+    state.currentChannel=alt;
+    const title=document.getElementById('nowChannel');
+    const prog=document.getElementById('nowProgram');
+    if(title)title.textContent=alt.name;
+    if(prog)prog.textContent=`${c.name} unavailable • trying ${alt.name}`;
+    drawChannelList(document.getElementById('channelSearch')?.value||'');
+    v7ShowLiveStatus(alt,alt.name,`${c.name} is unavailable. Trying another A&E regional feed…`,true);
+    setTimeout(()=>v7PlayLiveDirect(alt,urls,true,0,token),100);
+    return true;
+  }
+  return false;
+}
 function v7ReportPlayback(c,url,ok,reason=''){
   if(!c?.id||!url)return;
   v7Request('/api/channel/'+encodeURIComponent(c.id)+'/playback-report',{
@@ -543,7 +577,9 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
     }else if(v7TryNativePlayer(c,urls,token)){
       return;
     }else{
-      v7KeepSearching(c,token);
+      v7TryFamilyFallback(c,token).then(switched=>{
+        if(!switched)v7KeepSearching(c,token);
+      });
     }
   };
 
@@ -577,6 +613,7 @@ selectChannel=async function(id,autoplay=true){
   const token=++V7_SELECTION_TOKEN;
   V7_SEARCH_ATTEMPTS.clear();
   V7_NATIVE_ATTEMPTS.clear();
+  V7_FAMILY_TRIED.clear();
   clearTimeout(V7_RETRY_TIMER);
   state.currentChannel=c;
   drawChannelList(document.getElementById('channelSearch')?.value||'');
