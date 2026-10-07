@@ -22,6 +22,15 @@
   function adultVisible(){
     return !!adultState.enabled&&!!adultState.unlocked&&!state.profile?.kids;
   }
+  function isMatureChannel(c){
+    if(!c)return false;
+    if(isAdultChannel(c))return true;
+    const hay=[c.group,c.name,c.sourceName,c.now,c.category].filter(Boolean).join(' ').toLowerCase();
+    return /\b(horror|true crime|crime stories|crime files|unsolved mysteries|thriller|after dark|late night|paranormal|mystery|murder|investigation|investigations|dark matter)\b/i.test(hay);
+  }
+  function matureChannels(){
+    return priorFiltered().filter(isMatureChannel);
+  }
 
   const priorFiltered=filteredChannels;
   filteredChannels=function(){
@@ -97,6 +106,38 @@
     btn.textContent=adultState.unlocked?'🔞 18+ TV • Unlocked':'🔒 Unlock 18+ TV';
   }
 
+  const priorRenderLive=renderLive;
+  renderLive=function(){
+    priorRenderLive();
+    if(!adultState.enabled||!adultState.unlocked||state.profile?.kids)return;
+    const cats=document.querySelector('#view-live .channelCats');
+    if(cats&&!cats.querySelector('[data-group="__VELORA_18PLUS__"]')){
+      const btn=document.createElement('button');
+      btn.className='chip'+(state.currentFilter==='__VELORA_18PLUS__'?' active':'');
+      btn.dataset.group='__VELORA_18PLUS__';
+      btn.textContent='18+ / Mature';
+      cats.appendChild(btn);
+    }
+    const page=document.querySelector('#view-live .contentPage');
+    if(page&&!page.querySelector('.veloraMatureNotice')){
+      const notice=document.createElement('div');
+      notice.className='veloraMatureNotice';
+      notice.innerHTML='<b>18+ / Mature</b><span>This section combines gated adult-labelled channels from authorized feeds with mature public channels such as horror and true-crime. Explicit channels only appear when a licensed/authorized feed supplies them.</span>';
+      const banner=page.querySelector('.v7CatalogueBanner');
+      (banner||page.firstChild)?.after?.(notice);
+    }
+  };
+
+  const priorV7LiveMatches=typeof v7LiveMatches==='function'?v7LiveMatches:null;
+  if(priorV7LiveMatches){
+    v7LiveMatches=function(q=''){
+      if(state.currentFilter!=='__VELORA_18PLUS__')return priorV7LiveMatches(q);
+      if(!adultVisible())return [];
+      const needle=String(q||'').toLowerCase();
+      return matureChannels().filter(c=>!needle||(c.name+' '+(c.group||'')+' '+(c.now||'')+' '+(c.sourceName||'')).toLowerCase().includes(needle));
+    };
+  }
+
   const priorRenderSettings=renderSettings;
   renderSettings=function(){
     priorRenderSettings();
@@ -145,8 +186,7 @@
     if(e.target.closest('#adultUnlockBtn')||e.target.closest('#adultProfileBtn')){
       e.preventDefault();e.stopImmediatePropagation();
       if(adultState.unlocked){
-        const adultGroups=[...new Set(priorFiltered().filter(isAdultChannel).map(x=>x.group||'Adult'))];
-        state.currentFilter=adultGroups[0]||'All';
+        state.currentFilter='__VELORA_18PLUS__';
         document.getElementById('profileMenu')?.classList.remove('on');
         showView('live');
       }else openAdultModal('unlock');
@@ -182,8 +222,7 @@
         closeAdultModal();refreshAdultUi();toast('18+ access disabled');return;
       }
       adultState.enabled=true;adultState.unlocked=true;saveAdult();closeAdultModal();
-      const adultGroups=[...new Set(priorFiltered().filter(isAdultChannel).map(x=>x.group||'Adult'))];
-      state.currentFilter=adultGroups[0]||'All';
+      state.currentFilter='__VELORA_18PLUS__';
       document.getElementById('profileMenu')?.classList.remove('on');
       showView('live');
       toast('18+ channels unlocked for this session');
@@ -195,6 +234,6 @@
     if(e.key==='Escape'&&document.getElementById('veloraAdultModal')?.classList.contains('on'))closeAdultModal();
   });
 
-  window.veloraAdult={isAdultChannel,visible:adultVisible,lock:()=>{adultState.unlocked=false;refreshAdultUi()}};
+  window.veloraAdult={isAdultChannel,isMatureChannel,matureChannels,visible:adultVisible,lock:()=>{adultState.unlocked=false;refreshAdultUi()}};
   setTimeout(updateAdultMenu,0);
 })();
