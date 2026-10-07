@@ -1,0 +1,147 @@
+/* VELORA UX V15 — TV-first Live screen */
+#view-live .contentPage.veloraTvFirstPage{
+  padding-top:82px;
+  padding-left:max(12px,4vw);
+  padding-right:max(12px,4vw);
+  padding-bottom:88px;
+}
+#view-live .veloraTvFirstWrap{width:min(1180px,100%);margin:0 auto}
+#view-live .veloraTvPlayer{
+  overflow:hidden;border-radius:22px;border:1px solid rgba(255,255,255,.1);
+  background:#050608;box-shadow:0 22px 70px rgba(0,0,0,.52);
+}
+#view-live .veloraTvStage{
+  position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#000;
+}
+#view-live .veloraTvStage video,
+#view-live .veloraTvStage iframe,
+#view-live .veloraTvStage #officialWatchPanel{
+  position:absolute;inset:0;width:100%!important;height:100%!important;max-width:100%!important;
+  object-fit:contain;background:#000;border:0;
+}
+#view-live .veloraTvStage #officialWatchPanel{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px;
+}
+#view-live .veloraTvStage #officialWatchPanel.hidden{display:none!important}
+#view-live .veloraTvStage #inlineLive.hidden,
+#view-live .veloraTvStage #inlineLiveEmbed.hidden{display:none!important}
+
+#view-live .veloraTvNow{
+  min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:18px;
+  padding:13px 17px;background:linear-gradient(180deg,#11151e,#0b0e14);
+  border-top:1px solid rgba(255,255,255,.07);
+}
+#view-live .veloraTvNowText{min-width:0}
+#view-live .veloraTvNowText span{
+  display:block;color:#737e90;font-size:8px;letter-spacing:.16em;font-weight:900;margin-bottom:3px
+}
+#view-live .veloraTvNowText h2{
+  margin:0;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+#view-live .veloraTvNowText p{
+  margin:3px 0 0;color:#949eae;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+#view-live .veloraOnAir{
+  display:flex;align-items:center;gap:6px;flex:0 0 auto;padding:7px 9px;border-radius:999px;
+  background:#ff365d16;border:1px solid #ff365d2d;color:#ff9bb0;font-size:8px;font-weight:900;letter-spacing:.09em
+}
+#view-live .veloraOnAir i{width:6px;height:6px;border-radius:50%;background:#ff365d;box-shadow:0 0 10px #ff365d}
+
+#view-live .veloraTvControls{
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;
+  margin:12px 0 14px;
+}
+#view-live .veloraTvControls button{
+  min-height:46px;border:1px solid rgba(255,255,255,.09);border-radius:13px;
+  background:#11151d;color:#f6f7f9;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  font-weight:800;font-size:11px;touch-action:manipulation;transition:.15s;
+}
+#view-live .veloraTvControls button:hover,
+#view-live .veloraTvControls button:focus{background:#171c27;border-color:#ffffff1a;outline:none}
+#view-live .veloraTvControls button:active{transform:translateY(1px)}
+#view-live .veloraTvControls button b{font-size:15px;line-height:1}
+#view-live .veloraTvControls button span{color:#98a2b2;font-size:8px;letter-spacing:.04em}
+#view-live .veloraTvControls button.active{background:#492436;color:#ffd7e4}
+
+#view-live .veloraLiveSearchShell{
+  position:relative;border:1px solid rgba(255,255,255,.09);border-radius:16px;background:#0c0f16;
+  overflow:hidden;transition:.18s ease;
+}
+#view-live .veloraSearchBar{
+  min-height:58px;display:flex;align-items:center;gap:10px;padding:8px 10px;
+}
+#view-live .veloraSearchIcon{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;
+  background:#ffffff08;color:#9aa4b5;font-size:18px
+}
+#view-live #channelSearch{
+  flex:1;min-width:0;border:0;background:transparent;color:#fff;outline:none;font-size:15px;padding:10px 2px
+}
+#view-live #channelSearch::placeholder{color:#70798b}
+#view-live .veloraSearchCancel{
+  display:none;border:0;background:#ffffff0a;color:#c8ced8;border-radius:10px;padding:9px 12px;cursor:pointer
+}
+#view-live .veloraSearchHint{
+  padding:0 13px 11px 54px;color:#626d7e;font-size:9px
+}
+#view-live .channelList{display:none}
+#view-live .veloraLiveSearchShell.searching{
+  position:fixed;inset:0;z-index:500;border:0;border-radius:0;background:#07090e;
+  padding:max(12px,env(safe-area-inset-top)) max(12px,4vw) max(16px,env(safe-area-inset-bottom));
+  overflow-y:auto;
+}
+#view-live .veloraLiveSearchShell.searching .veloraSearchBar{
+  position:sticky;top:0;z-index:3;min-height:64px;border:1px solid #ffffff10;border-radius:16px;
+  background:#0e121a;box-shadow:0 12px 35px #0008;
+}
+#view-live .veloraLiveSearchShell.searching .veloraSearchCancel{display:block}
+#view-live .veloraLiveSearchShell.searching .veloraSearchHint{
+  padding:18px 3px 10px;color:#8892a3;font-size:10px
+}
+#view-live .veloraLiveSearchShell.searching .channelList{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 0 26px;
+}
+#view-live .veloraLiveSearchShell.searching .channelRow{
+  border:1px solid #ffffff0a;border-radius:13px;background:#0d1118;padding:11px;
+  min-height:66px;grid-template-columns:42px minmax(0,1fr) auto;
+}
+#view-live .veloraLiveSearchShell.searching .channelRow:hover,
+#view-live .veloraLiveSearchShell.searching .channelRow.active{background:#171c28;border-color:#7567ff4f}
+#view-live .veloraLiveSearchShell.searching .v7ListMore{grid-column:1/-1}
+#view-live .veloraSearchEmpty{
+  grid-column:1/-1;padding:50px 20px;text-align:center;color:#7c8799;
+}
+#view-live #guideBody,
+#view-live .sourceGuide,
+#view-live .channelCats,
+#view-live .v7CatalogueBanner,
+#view-live .realSourceNote,
+#view-live .pageHead{display:none!important}
+
+@media(max-width:760px){
+  #view-live .contentPage.veloraTvFirstPage{padding:66px 8px 76px}
+  #view-live .veloraTvPlayer{border-radius:14px}
+  #view-live .veloraTvNow{min-height:58px;padding:10px 11px}
+  #view-live .veloraTvNowText h2{font-size:16px}
+  #view-live .veloraTvNowText p{font-size:9px;max-width:68vw}
+  #view-live .veloraOnAir{padding:6px 7px;font-size:7px}
+  #view-live .veloraTvControls{
+    grid-template-columns:repeat(4,1fr);gap:6px;margin:9px 0 10px
+  }
+  #view-live .veloraTvControls button{min-height:42px;border-radius:11px}
+  #view-live .veloraTvControls button:nth-child(5),
+  #view-live .veloraTvControls button:nth-child(6),
+  #view-live .veloraTvControls button:nth-child(7){min-height:38px}
+  #view-live .veloraSearchBar{min-height:54px}
+  #view-live .veloraSearchHint{padding-left:50px}
+  #view-live .veloraLiveSearchShell.searching{padding:8px 8px 74px}
+  #view-live .veloraLiveSearchShell.searching .channelList{grid-template-columns:1fr}
+  #view-live .veloraLiveSearchShell.searching .veloraSearchBar{top:0;min-height:58px}
+}
+@media(max-width:420px){
+  #view-live .veloraTvControls button span{display:none}
+  #view-live .veloraTvControls button b{font-size:16px}
+  #view-live .veloraTvControls{grid-template-columns:repeat(7,1fr);gap:4px}
+  #view-live .veloraTvControls button{min-height:40px;padding:0}
+  #view-live .veloraTvControls button:nth-child(n){min-height:40px}
+}
