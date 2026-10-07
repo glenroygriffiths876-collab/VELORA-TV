@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="tv-mode.css?v=1" />
 <link rel="stylesheet" href="auth.css?v=1" />
 <link rel="stylesheet" href="ux-v11.css?v=1" />
+<link rel="stylesheet" href="ux-v12.css?v=1" />
 <title>Velora TV</title>
 </head>
 <body>
@@ -38,7 +39,8 @@
     <form id="loginForm">
       <span class="authEyebrow">WELCOME BACK</span>
       <h1>Sign in to VELORA.</h1>
-      <p>Your profile, list and viewing activity stay separate from other testers.</p>
+      <p>Your profile and viewing activity stay separate from other testers.</p>
+      <div class="loginPrivateNote"><b>Private preview:</b> If you have access to VELORA, you are a trusted friend or family member of the developer. Please do not share this app, link or login. Live TV is the main feature currently being tested; Movies and Series are still in development.</div>
       <label>Email or username<input id="loginEmail" type="text" autocomplete="username" required></label>
       <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
       <button class="primary wide" type="submit">Sign in</button>
@@ -67,10 +69,8 @@
     <nav class="mainnav" aria-label="Primary">
       <button data-view="home" class="active">Home</button>
       <button data-view="live">Live TV</button>
-      <button data-view="movies">Movies</button>
-      <button data-view="series">Series</button>
-      <button data-view="discover">Trending</button>
-      <button data-view="open">Open Library</button>
+      <button data-view="movies">Movies <small>Beta</small></button>
+      <button data-view="series">Series <small>Beta</small></button>
       <button data-view="search">Search</button>
     </nav>
     <div class="topActions">
@@ -104,9 +104,9 @@
   <nav class="mobileNav">
     <button data-view="home" class="active"><span>⌂</span>Home</button>
     <button data-view="live"><span>◉</span>Live</button>
-    <button data-view="movies"><span>▶</span>Movies</button>
-    <button data-view="discover"><span>★</span>Trending</button>
+    <button data-view="search"><span>⌕</span>Search</button>
     <button data-view="mylist"><span>♡</span>My List</button>
+    <button data-view="settings"><span>⚙</span>Settings</button>
   </nav>
 </div>
 
@@ -150,6 +150,7 @@
 <script src="real-v9-client.js?v=2"></script>
 <script src="auth-client.js?v=4"></script>
 <script src="ux-v11.js?v=1"></script>
+<script src="ux-v12.js?v=1"></script>
 <script src="install.js?v=2"></script>
 <script src="tv-mode.js?v=1"></script>
 </body>
