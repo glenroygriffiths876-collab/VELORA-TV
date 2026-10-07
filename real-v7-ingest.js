@@ -232,8 +232,12 @@ function v7IsTVJ(c){
   return key==='tvj'||key==='television jamaica'||key.startsWith('tvj ');
 }
 function v7IsJamaicanChannel(c){
-  return String(c?.group||'').trim().toLowerCase()==='jamaica'
-    || String(c?.territory||'').trim().toUpperCase()==='JM';
+  const group=String(c?.group||'').trim().toLowerCase();
+  const territory=String(c?.territory||'').trim().toUpperCase();
+  const source=String(c?.sourceName||'').trim().toLowerCase();
+  return /(^|\b)jamaica(n)?(\b|$)/i.test(group)
+    || territory==='JM'
+    || /(^|\b)jamaica(n)?(\b|$)/i.test(source);
 }
 function v7DefaultBrowseChannels(){
   return filteredChannels().filter(c=>!v7IsJamaicanChannel(c)||v7IsTVJ(c));
