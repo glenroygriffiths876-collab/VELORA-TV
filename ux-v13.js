@@ -4,11 +4,11 @@
   const adultState={...(JSON.parse(localStorage.getItem(ADULT_KEY)||'{}')||{}),unlocked:false};
 
   function saveAdult(){
-    const persisted={enabled:!!adultState.enabled,pinHash:String(adultState.pinHash||'')};
+    const persisted={enabled:!!adultState.enabled,pinHash:String(adultState.pinHash||''),salt:String(adultState.salt||'')};
     localStorage.setItem(ADULT_KEY,JSON.stringify(persisted));
   }
   async function hashPin(pin){
-    const bytes=new TextEncoder().encode('VELORA|18+|'+String(pin));
+    const bytes=new TextEncoder().encode('VELORA|18+|'+String(adultState.salt||'')+'|'+String(pin));
     const digest=await crypto.subtle.digest('SHA-256',bytes);
     return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
   }
@@ -167,6 +167,10 @@
       if(!/^\d{4,6}$/.test(pin)){toast('Use a 4–6 digit PIN.');return}
       if(mode==='setup'){
         if(pin!==confirm){toast('PINs do not match.');return}
+        if(!adultState.salt){
+          const saltBytes=new Uint8Array(16);crypto.getRandomValues(saltBytes);
+          adultState.salt=[...saltBytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+        }
         adultState.pinHash=await hashPin(pin);
         adultState.enabled=true;adultState.unlocked=true;saveAdult();closeAdultModal();refreshAdultUi();toast('18+ access enabled and unlocked');return;
       }
