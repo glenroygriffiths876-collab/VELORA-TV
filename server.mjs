@@ -572,6 +572,45 @@ function normalizeTitle(s=''){return String(s).toLowerCase().normalize('NFKD').r
 function catalogKey(x){return [x.type||'movie',normalizeTitle(x.title),yearOf(x.year)].join('|')}
 function channelKey(x){return (x.epgId||x.tvgId||normalizeTitle(x.name)).toLowerCase()}
 function scoreSource(x){return Number(x.priority||50)+(x.health==='up'?30:x.health==='down'?-50:0)}
+function reliabilityKey(url){
+  return 'reliability:'+crypto.createHash('sha256').update(String(url||'')).digest('hex').slice(0,24);
+}
+function reliabilityRecord(url){
+  return db.health?.[reliabilityKey(url)]||null;
+}
+function reliabilityScore(url){
+  const r=reliabilityRecord(url);
+  if(!r)return 0;
+  const now=Date.now();
+  const lastFail=Date.parse(r.lastFailureAt||0)||0;
+  const lastOk=Date.parse(r.lastSuccessAt||0)||0;
+  const recentFail=lastFail&&now-lastFail<6*3600000?28:0;
+  const recentOk=lastOk&&now-lastOk<24*3600000?18:0;
+  const latencyBonus=Number.isFinite(r.latencyMs)?Math.max(-8,8-Math.round(r.latencyMs/500)):0;
+  return Math.min(60,Number(r.playbackSuccesses||0)*10)+recentOk+latencyBonus
+    -Math.min(90,Number(r.playbackFailures||0)*18)-recentFail;
+}
+function recordReliability(url,{ok,reason='',latencyMs=null,kind='probe'}={}){
+  if(!url)return;
+  db.health??={};
+  const key=reliabilityKey(url),prev=db.health[key]||{};
+  const now=new Date().toISOString();
+  const next={...prev,url,lastChecked:now,lastKind:kind};
+  if(Number.isFinite(latencyMs))next.latencyMs=Number(latencyMs);
+  if(ok){
+    next.status='up';
+    next.lastSuccessAt=now;
+    if(kind==='playback')next.playbackSuccesses=Number(prev.playbackSuccesses||0)+1;
+    else next.probeSuccesses=Number(prev.probeSuccesses||0)+1;
+  }else{
+    next.status='down';
+    next.lastFailureAt=now;
+    next.lastFailureReason=String(reason||'failed').slice(0,160);
+    if(kind==='playback')next.playbackFailures=Number(prev.playbackFailures||0)+1;
+    else next.probeFailures=Number(prev.probeFailures||0)+1;
+  }
+  db.health[key]=next;
+}
 function sourceMeta(provider,item,kind){
   return {providerId:provider.id,providerName:provider.name,kind,streamId:item.stream_id??item.series_id??item.id??null,container:item.container_extension||item.container||'',priority:Number(provider.priority||50),territory:provider.territory||'WORLD',health:'unknown',lastChecked:null};
 }
@@ -905,7 +944,8 @@ const STREAM_RESOLVE_CACHE=new Map();
 async function probeStream(url,timeoutMs=5000){
   const cached=STREAM_RESOLVE_CACHE.get(url);
   if(cached&&Date.now()-cached.at<90000)return cached.ok;
-  let ok=false;
+  let ok=false,reason='probe failed';
+  const started=Date.now();
   const ac=new AbortController();
   const timer=setTimeout(()=>ac.abort(),timeoutMs);
   try{
@@ -921,6 +961,7 @@ async function probeStream(url,timeoutMs=5000){
       if(ct.includes('mpegurl')||/\.m3u8(?:$|\?)/i.test(r.url||url)){
         const body=await r.text();
         ok=body.includes('#EXTM3U');
+        if(!ok)reason='invalid HLS playlist';
       }else{
         const reader=r.body?.getReader();
         if(reader){
@@ -928,10 +969,12 @@ async function probeStream(url,timeoutMs=5000){
           ok=!first.done&&!!first.value?.byteLength;
           try{await reader.cancel()}catch{}
         }else ok=true;
+        if(!ok)reason='empty stream response';
       }
-    }
-  }catch{}
+    }else reason='HTTP '+r.status;
+  }catch(e){reason=String(e.message||e)}
   finally{clearTimeout(timer)}
+  recordReliability(url,{ok,reason,latencyMs:Date.now()-started,kind:'probe'});
   STREAM_RESOLVE_CACHE.set(url,{ok,at:Date.now()});
   return ok;
 }
@@ -947,8 +990,33 @@ function channelPublicUpstreams(ch){
 async function resolvePublicChannel(ch){
   const urls=await discoverDynamicChannelSources(ch);
   if(!urls.length)return [];
-  const results=await pooled(urls,Math.min(6,urls.length),async u=>({url:u,ok:await probeStream(u,4500)}));
-  return results.filter(x=>x.ok).map(x=>relayPath(x.url));
+  const ranked=[...urls].sort((a,b)=>reliabilityScore(b)-reliabilityScore(a));
+  const results=await pooled(ranked,Math.min(6,ranked.length),async u=>({url:u,ok:await probeStream(u,4500)}));
+  return results
+    .filter(x=>x.ok)
+    .sort((a,b)=>reliabilityScore(b.url)-reliabilityScore(a.url))
+    .map(x=>relayPath(x.url));
+}
+function canonicalPlaybackReportUrl(raw,ch){
+  try{
+    const u=new URL(String(raw||''),'http://velora.local');
+    if(u.pathname==='/api/public/relay'){
+      const decoded=relayDecode(u.searchParams.get('token')||'');
+      if(decoded)return decoded;
+    }
+    const fixed=u.pathname.match(/^\/api\/public\/fixed\/([^/]+)\/(\d+)$/);
+    if(fixed){
+      const cfg=PUBLIC_DIRECT_OVERRIDES.find(x=>x.id===decodeURIComponent(fixed[1]));
+      return cfg?.upstreamUrls?.[Number(fixed[2])]||cfg?.upstreamUrl||'';
+    }
+    const byId=u.pathname.match(/^\/api\/public\/channel\/([^/]+)$/);
+    if(byId){
+      const found=db.channels.find(x=>x.id===decodeURIComponent(byId[1]));
+      return found?.upstreamUrl||'';
+    }
+    if(/^https?:$/i.test(u.protocol))return u.toString();
+  }catch{}
+  return ch?.upstreamUrl||'';
 }
 
 function parseM3U(textBody,provider){
@@ -1208,6 +1276,24 @@ async function api(req,res){
     const body=JSON.parse((await readBody(req).catch(()=>''))||'{}');
     const result=await healthScan({limit:Math.min(2000,Math.max(1,Number(body.limit||250)))});
     return json(res,200,{ok:true,...result,stats:computeStats()});
+  }
+
+  const playbackReportMatch=p.match(/^\/api\/channel\/([^/]+)\/playback-report$/);
+  if(req.method==='POST'&&playbackReportMatch){
+    const user=sessionUser(req);if(!user)return json(res,401,{ok:false,error:'Sign in required'});
+    const ch=db.channels.find(x=>x.id===decodeURIComponent(playbackReportMatch[1]));
+    if(!ch)return json(res,404,{ok:false,error:'Channel not found'});
+    const body=JSON.parse((await readBody(req).catch(()=>''))||'{}');
+    const target=canonicalPlaybackReportUrl(body.url,ch);
+    if(target){
+      recordReliability(target,{
+        ok:body.ok===true,
+        reason:String(body.reason||'playback').slice(0,160),
+        kind:'playback'
+      });
+      saveDB();
+    }
+    return json(res,200,{ok:true,recorded:!!target});
   }
 
   const resolveMatch=p.match(/^\/api\/channel\/([^/]+)\/resolve$/);
