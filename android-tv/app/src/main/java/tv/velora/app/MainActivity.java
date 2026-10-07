@@ -18,6 +18,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.JavascriptInterface;
 import android.widget.FrameLayout;
 
 public class MainActivity extends Activity {
@@ -58,6 +59,7 @@ public class MainActivity extends Activity {
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+        webView.addJavascriptInterface(new VeloraNativeBridge(), "VeloraNative");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -109,6 +111,24 @@ public class MainActivity extends Activity {
 
         webView.loadUrl(getString(R.string.velora_url));
         webView.requestFocus();
+    }
+
+    private class VeloraNativeBridge {
+        @JavascriptInterface
+        public boolean isAvailable() {
+            return true;
+        }
+
+        @JavascriptInterface
+        public void playStream(String url, String title) {
+            if (url == null || url.trim().isEmpty()) return;
+            runOnUiThread(() -> {
+                Intent intent = new Intent(MainActivity.this, NativePlayerActivity.class);
+                intent.putExtra("streamUrl", url);
+                intent.putExtra("title", title == null ? "VELORA Live" : title);
+                startActivity(intent);
+            });
+        }
     }
 
     private void hideCustomView() {
