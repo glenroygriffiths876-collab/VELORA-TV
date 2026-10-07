@@ -129,14 +129,24 @@
     updateAdultMenu();
   };
 
+  const priorExitApp=window.veloraExitApp;
+  window.veloraExitApp=function(){
+    adultState.unlocked=false;
+    if(state.currentFilter&&/adult|18\+|xxx|erotic/i.test(state.currentFilter))state.currentFilter='All';
+    updateAdultMenu();
+    return priorExitApp?.apply(this,arguments);
+  };
+
   document.addEventListener('click',async e=>{
+    if(e.target.id==='resetApp'){adultState.unlocked=false;localStorage.removeItem(ADULT_KEY)}
     if(e.target.closest('[data-adult-close]')){e.preventDefault();e.stopImmediatePropagation();closeAdultModal();return}
     if(e.target.closest('#adultSetupBtn')){e.preventDefault();e.stopImmediatePropagation();openAdultModal('setup');return}
     if(e.target.closest('#adultEnableBtn')){e.preventDefault();e.stopImmediatePropagation();openAdultModal(adultState.pinHash?'unlock':'setup');return}
     if(e.target.closest('#adultUnlockBtn')||e.target.closest('#adultProfileBtn')){
       e.preventDefault();e.stopImmediatePropagation();
       if(adultState.unlocked){
-        state.currentFilter='Adult';
+        const adultGroups=[...new Set(priorFiltered().filter(isAdultChannel).map(x=>x.group||'Adult'))];
+        state.currentFilter=adultGroups[0]||'All';
         document.getElementById('profileMenu')?.classList.remove('on');
         showView('live');
       }else openAdultModal('unlock');
@@ -168,7 +178,8 @@
         closeAdultModal();refreshAdultUi();toast('18+ access disabled');return;
       }
       adultState.enabled=true;adultState.unlocked=true;saveAdult();closeAdultModal();
-      state.currentFilter='Adult';
+      const adultGroups=[...new Set(priorFiltered().filter(isAdultChannel).map(x=>x.group||'Adult'))];
+      state.currentFilter=adultGroups[0]||'All';
       document.getElementById('profileMenu')?.classList.remove('on');
       showView('live');
       toast('18+ channels unlocked for this session');
