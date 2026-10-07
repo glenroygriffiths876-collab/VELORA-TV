@@ -435,47 +435,116 @@ function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
     return v7KeepSearching(refreshed,token);
   },3500);
 }
+const V7_NATIVE_ATTEMPTS=new Set();
+function v7NativeAvailable(){
+  try{return !!(window.VeloraNative&&window.VeloraNative.isAvailable&&window.VeloraNative.isAvailable())}catch{return false}
+}
+function v7TryNativePlayer(c,urls,token){
+  if(token!==V7_SELECTION_TOKEN||!v7NativeAvailable()||V7_NATIVE_ATTEMPTS.has(token))return false;
+  const url=(urls||[]).find(Boolean);
+  if(!url)return false;
+  V7_NATIVE_ATTEMPTS.add(token);
+  v7ResetInline();
+  v7ShowLiveStatus(c,c.name,'Opening VELORA compatibility player for this channel…',true);
+  try{
+    window.VeloraNative.playStream(String(url),String(c.name||'VELORA Live'));
+    return true;
+  }catch{
+    return false;
+  }
+}
 function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN){
   if(token!==V7_SELECTION_TOKEN)return;
   const url=urls[index];
-  if(!url)return v7KeepSearching(c,token);
+  if(!url){
+    if(v7TryNativePlayer(c,urls,token))return;
+    return v7KeepSearching(c,token);
+  }
 
   v7ResetInline();
-  v7ShowLiveStatus(c,c.name,index?'Switching to another live source…':'Starting live stream…',true);
+  v7ShowLiveStatus(c,c.name,index?'Trying another video source…':'Starting live stream…',true);
 
   const v=document.getElementById('inlineLive'),panel=document.getElementById('officialWatchPanel');
   if(!v)return;
   let settled=false;
   let timeout=null;
+  let frameTimer=null;
+  let verifyStarted=false;
 
-  const started=()=>{
-    if(settled||token!==V7_SELECTION_TOKEN)return;
-    settled=true;clearTimeout(timeout);
-    v.classList.remove('hidden');
-    if(panel)panel.classList.add('hidden');
-    if(autoplay)v.play().catch(()=>{});
+  const cleanupTimers=()=>{
+    clearTimeout(timeout);
+    clearTimeout(frameTimer);
+  };
+  const confirmVideo=()=>{
+    if(settled||token!==V7_SELECTION_TOKEN||verifyStarted)return;
+    verifyStarted=true;
+
+    const goodFrame=()=>{
+      if(settled||token!==V7_SELECTION_TOKEN)return;
+      if((v.videoWidth||0)>0&&(v.videoHeight||0)>0){
+        settled=true;cleanupTimers();
+        v.classList.remove('hidden');
+        if(panel)panel.classList.add('hidden');
+        return;
+      }
+      verifyStarted=false;
+      fail('no-video-frame');
+    };
+
+    if(autoplay){
+      try{v.play().catch(()=>{})}catch{}
+    }
+
+    if(typeof v.requestVideoFrameCallback==='function'){
+      let frameSeen=false;
+      try{
+        v.requestVideoFrameCallback(()=>{
+          frameSeen=true;
+          if((v.videoWidth||0)>0&&(v.videoHeight||0)>0){
+            settled=true;cleanupTimers();
+            v.classList.remove('hidden');
+            if(panel)panel.classList.add('hidden');
+          }
+        });
+      }catch{}
+      frameTimer=setTimeout(()=>{if(!frameSeen)goodFrame()},3200);
+    }else{
+      frameTimer=setTimeout(goodFrame,1800);
+    }
   };
   const fail=()=>{
     if(settled||token!==V7_SELECTION_TOKEN)return;
-    settled=true;clearTimeout(timeout);
+    settled=true;cleanupTimers();
     if(state.hls){try{state.hls.destroy()}catch{}state.hls=null}
+    try{v.pause();v.removeAttribute('src');v.load()}catch{}
     if(index+1<urls.length){
-      setTimeout(()=>v7PlayLiveDirect(c,urls,autoplay,index+1,token),80);
+      setTimeout(()=>v7PlayLiveDirect(c,urls,autoplay,index+1,token),100);
+    }else if(v7TryNativePlayer(c,urls,token)){
+      return;
     }else{
       v7KeepSearching(c,token);
     }
   };
 
-  timeout=setTimeout(fail,9000);
+  timeout=setTimeout(fail,10000);
   v.onerror=fail;
-  v.onloadeddata=started;
-  v.oncanplay=started;
+  v.onloadedmetadata=confirmVideo;
+  v.onloadeddata=confirmVideo;
+  v.oncanplay=confirmVideo;
 
   try{
     if(window.Hls&&Hls.isSupported()&&(/\.m3u8(?:$|\?)/i.test(url)||url.includes('/api/public/'))){
-      state.hls=new Hls({enableWorker:true,lowLatencyMode:true,maxBufferLength:30,manifestLoadingTimeOut:7000,levelLoadingTimeOut:7000,fragLoadingTimeOut:7000});
-      state.hls.loadSource(url);state.hls.attachMedia(v);
-      state.hls.on(Hls.Events.MANIFEST_PARSED,started);
+      state.hls=new Hls({
+        enableWorker:true,
+        lowLatencyMode:true,
+        maxBufferLength:30,
+        manifestLoadingTimeOut:7000,
+        levelLoadingTimeOut:7000,
+        fragLoadingTimeOut:7000
+      });
+      state.hls.loadSource(url);
+      state.hls.attachMedia(v);
+      state.hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(autoplay){try{v.play().catch(()=>{})}catch{}}});
       state.hls.on(Hls.Events.ERROR,(_,data)=>{if(data?.fatal)fail()});
     }else{
       v.src=url;v.load();
@@ -486,6 +555,7 @@ selectChannel=async function(id,autoplay=true){
   const c=filteredChannels().find(x=>x.id===id);if(!c)return;
   const token=++V7_SELECTION_TOKEN;
   V7_SEARCH_ATTEMPTS.clear();
+  V7_NATIVE_ATTEMPTS.clear();
   clearTimeout(V7_RETRY_TIMER);
   state.currentChannel=c;
   drawChannelList(document.getElementById('channelSearch')?.value||'');
