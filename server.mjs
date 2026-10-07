@@ -1079,23 +1079,44 @@ async function pooled(items,limit,fn){
   async function worker(){while(true){const i=next++;if(i>=items.length)return;out[i]=await fn(items[i],i)}}
   await Promise.all(Array.from({length:Math.min(limit,items.length)},worker));return out;
 }
-async function healthScan({limit=250}={}){
-  const targets=[];
+async function healthScan({limit=250,offset=0}={}){
+  const allTargets=[];
   for(const ch of db.channels){
     for(const s of ch.sources||[]){
-      if(targets.length>=limit)break;
+      // public_direct Jamaica feeds are intentionally viewer-first because a
+      // Railway probe from another territory can produce a false negative.
+      if(String(s.providerId||'')==='public_direct')continue;
       const provider=db.providers.find(p=>p.id===s.providerId);
-      let url=s.url||'';
+      let url=s.upstreamUrl||'';
+      if(!url&&/^https?:\/\//i.test(String(s.url||'')))url=s.url;
+      if(!url&&/^https?:\/\//i.test(String(ch.upstreamUrl||'')))url=ch.upstreamUrl;
       if(!url&&provider&&s.streamId&&s.kind==='live')url=playbackUrl(provider,'live',{stream_id:s.streamId});
-      if(url)targets.push({key:'channel:'+ch.id+':'+s.providerId,url,source:s});
+      if(url)allTargets.push({key:'channel:'+ch.id+':'+s.providerId,url,source:s});
     }
-    if(targets.length>=limit)break;
   }
+  const total=allTargets.length;
+  if(!total)return {checked:0,up:0,down:0,total:0,nextOffset:0,results:[]};
+  offset=Math.max(0,Number(offset||0))%total;
+  const count=Math.min(Math.max(1,Number(limit||250)),total);
+  const targets=[];
+  for(let i=0;i<count;i++)targets.push(allTargets[(offset+i)%total]);
   const checked=await pooled(targets,HEALTH_CONCURRENCY,async t=>{
-    const h=await checkUrl(t.url);db.health[t.key]=h;t.source.health=h.status;t.source.lastChecked=h.checkedAt;return {...t,...h};
+    const started=Date.now();
+    const h=await checkUrl(t.url);
+    db.health[t.key]=h;
+    t.source.health=h.status;t.source.lastChecked=h.checkedAt;
+    recordReliability(t.url,{ok:h.status==='up',reason:h.error||('HTTP '+(h.httpStatus||'')),latencyMs:h.latencyMs??(Date.now()-started),kind:'probe'});
+    return {...t,...h};
   });
   saveDB();
-  return {checked:checked.length,up:checked.filter(x=>x.status==='up').length,down:checked.filter(x=>x.status==='down').length,results:checked};
+  return {
+    checked:checked.length,
+    up:checked.filter(x=>x.status==='up').length,
+    down:checked.filter(x=>x.status==='down').length,
+    total,
+    nextOffset:(offset+count)%total,
+    results:checked
+  };
 }
 
 async function proxyUpstream(req,res,provider,kind,id,ext=''){
@@ -1370,6 +1391,8 @@ const server=http.createServer(async(req,res)=>{
 });
 server.listen(PORT,HOST,()=>{console.log('Velora Ingest V7 listening on http://'+HOST+':'+PORT);setTimeout(async()=>{try{await bootstrapPublicFeeds();const graph=await buildUnifiedMediaGraph(true);console.log('Unified media graph ready:',JSON.stringify(graph.counts))}catch(e){console.error('Startup graph warm failed',e)}},750)});
 
+let reliabilitySweepCursor=0;
+let lastReliabilitySweep=0;
 let schedulerBusy=false;
 setInterval(async()=>{
   if(schedulerBusy)return;schedulerBusy=true;
@@ -1380,6 +1403,14 @@ setInterval(async()=>{
       const interval=Math.max(5,Number(p.refreshMinutes||DEFAULT_REFRESH_MINUTES))*60000;
       const last=Date.parse(p.lastSync||0)||0;
       if(now-last>=interval){try{await syncProvider(p)}catch(e){console.error('Scheduled sync failed for',p.name,e.message)}}
+    }
+    if(now-lastReliabilitySweep>=10*60000){
+      lastReliabilitySweep=now;
+      try{
+        const sweep=await healthScan({limit:100,offset:reliabilitySweepCursor});
+        reliabilitySweepCursor=sweep.nextOffset||0;
+        console.log('Reliability sweep:',sweep.up+' up',sweep.down+' down','of',sweep.checked,'checked');
+      }catch(e){console.error('Reliability sweep failed',e.message)}
     }
   }finally{schedulerBusy=false}
 },60000).unref();
