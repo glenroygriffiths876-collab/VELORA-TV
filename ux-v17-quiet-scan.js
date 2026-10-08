@@ -361,6 +361,22 @@
       }
     });
   }
+  // A slow provider catalogue must also trigger scanning when it finally
+  // arrives. Previously, the scanner could finish before these rows existed.
+  if(typeof v7ApplySnapshot==='function') {
+    const beforeSnapshot=v7ApplySnapshot;
+    v7ApplySnapshot=function(...args) {
+      const result=beforeSnapshot(...args);
+      setTimeout(()=>{
+        if(!document.hidden) {
+          catalog();
+          quietFindMore();
+        }
+      },350);
+      return result;
+    };
+  }
+
   function kick() {
     clearTimeout(startupTimer);
     startupTimer=setTimeout(()=>{
