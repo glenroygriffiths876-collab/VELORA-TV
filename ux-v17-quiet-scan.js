@@ -21,7 +21,11 @@
   let lastMessage=0;
 
   function fingerprint(c) {
-    return String(c.id||'')+'|'+String(c.url||'')+'|'+String(c.upstreamUrl||'');
+    // Keep any source URLs/tokens out of persistent storage.
+    const source=String(c.id||'')+'|'+String(c.url||'')+'|'+String(c.upstreamUrl||'');
+    let hash=2166136261;
+    for(let i=0;i<source.length;i++){hash^=source.charCodeAt(i);hash=Math.imul(hash,16777619)}
+    return String(c.id||'')+'|'+(hash>>>0).toString(36);
   }
   function remember() {
     try {
@@ -67,7 +71,7 @@
     const n=readyList().length;
     return n+' video-verified channel'+(n===1?'':'s');
   }
-  function mark(c) {
+  function mark(c,fromBackground=false) {
     if(!c?.id)return;
     blocked.delete(c.id);
     checked.set(c.id,Date.now());
@@ -76,6 +80,16 @@
     if(document.getElementById('view-live')?.classList.contains('active')) {
       const input=document.getElementById('channelSearch');
       if(!input?.value)try{drawChannelList('')}catch{}
+      // A background scan must not interrupt active television. Recover only
+      // if the on-screen channel has already been confirmed unavailable.
+      if(fromBackground && state.currentChannel?.id!==c.id &&
+          (!state.currentChannel || blocked.has(state.currentChannel.id) ||
+           V7_SESSION_FAILED_IDS.has(state.currentChannel.id))) {
+        setTimeout(()=>{
+          if(!activePlaying() && state.currentChannel?.id!==c.id &&
+             !document.getElementById('channelSearch')?.value) selectChannel(c.id,true);
+        },200);
+      }
     }
   }
   function fail(c) {
@@ -196,8 +210,7 @@
   function isCandidate(c) {
     if(!c?.id||working(c)||blocked.get(c.id)>Date.now()||
         V7_SESSION_FAILED_IDS.has(c.id))return false;
-    if(typeof v7IsJamaicanChannel==='function' &&
-       v7IsJamaicanChannel(c)&&!v7IsTVJ(c))return false;
+    // Check Jamaican streams directly from the viewer's territory too.
     if(!v7LiveCandidates(c).length)return false;
     const last=checked.get(c.id)||0;
     return Date.now()-last>RETRY_MS;
@@ -270,7 +283,7 @@
       if(ok)break;
     }
     if(epoch!==generation)return;
-    if(ok)mark(c);
+    if(ok)mark(c,true);
     else blocked.set(c.id,Date.now()+FAIL_MS);
   }
   function discoveryPool() {
