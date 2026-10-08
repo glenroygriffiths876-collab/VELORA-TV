@@ -1,0 +1,326 @@
+// VELORA V17 — responsive TV remote, separate quiet discovery of playable video.
+// Never tune an unknown/broken channel when pressing CH+ or CH−.
+(() => {
+  'use strict';
+  const KEY='velora_verified_video_v17';
+  const FRESH_MS=90*60*1000;
+  const RETRY_MS=15*60*1000;
+  const FAIL_MS=20*60*1000;
+  const DISCOVERY_LIMIT=70;
+  const MAX_WORKERS=2;
+  const PROBE_MS=6500;
+  const known=new Map();
+  const blocked=new Map();
+  const checked=new Map();
+  let order=[];
+  let scanning=false;
+  let generation=0;
+  let autoFailover=false;
+  let failoverTimer=null;
+  let startupTimer=null;
+  let lastMessage=0;
+
+  function fingerprint(c) {
+    return String(c.id||'')+'|'+String(c.url||'')+'|'+String(c.upstreamUrl||'');
+  }
+  function remember() {
+    try {
+      const saved=[...known.entries()].slice(-200).map(([id,x])=>[id,x]);
+      localStorage.setItem(KEY,JSON.stringify(saved));
+    } catch {}
+  }
+  try {
+    const data=JSON.parse(localStorage.getItem(KEY)||'[]');
+    if(Array.isArray(data))for(const entry of data) {
+      if(!Array.isArray(entry)||entry.length!==2)continue;
+      const [id,x]=entry;
+      if(typeof id==='string'&&x&&Date.now()-Number(x.at||0)<FRESH_MS)known.set(id,x);
+    }
+  } catch {}
+
+  function catalog() {
+    const rows=filteredChannels();
+    const byId=new Map(rows.map(c=>[c.id,c]));
+    // Freeze the remote order at first catalog load. A newly arrived channel is
+    // appended, never moved around due to a server health probe.
+    if(!order.length)order=rows.map(c=>c.id);
+    else {
+      const seen=new Set(order);
+      for(const c of rows)if(!seen.has(c.id)){order.push(c.id);seen.add(c.id)}
+    }
+    return {rows,byId};
+  }
+  function working(c) {
+    if(!c||blocked.get(c.id)>Date.now()||V7_SESSION_FAILED_IDS.has(c.id))return false;
+    const stored=known.get(c.id);
+    if(!stored)return false;
+    if(Date.now()-Number(stored.at||0)>=FRESH_MS||stored.fingerprint!==fingerprint(c)) {
+      known.delete(c.id);return false;
+    }
+    return true;
+  }
+  function readyList() {
+    const {byId}=catalog();
+    return order.map(id=>byId.get(id)).filter(working);
+  }
+  function countLabel() {
+    const n=readyList().length;
+    return n+' video-verified channel'+(n===1?'':'s');
+  }
+  function mark(c) {
+    if(!c?.id)return;
+    blocked.delete(c.id);
+    checked.set(c.id,Date.now());
+    known.set(c.id,{at:Date.now(),fingerprint:fingerprint(c)});
+    remember();
+    if(document.getElementById('view-live')?.classList.contains('active')) {
+      const input=document.getElementById('channelSearch');
+      if(!input?.value)try{drawChannelList('')}catch{}
+    }
+  }
+  function fail(c) {
+    if(!c?.id)return;
+    known.delete(c.id);
+    checked.set(c.id,Date.now());
+    blocked.set(c.id,Date.now()+FAIL_MS);
+    remember();
+  }
+  function message(s) {
+    const now=Date.now();
+    if(now-lastMessage>300 || s!==message.previous) {
+      toast(s);message.previous=s;lastMessage=now;
+    }
+  }
+  function quietFindMore() {
+    if(!scanning)startDiscovery();
+  }
+  function activePlaying() {
+    const v=document.getElementById('inlineLive');
+    return !!(v&&!v.classList.contains('hidden')&&!v.paused&&
+      v.readyState>=2&&v.videoWidth>0&&v.videoHeight>0&&v.currentTime>.1);
+  }
+
+  // CH navigation uses ONLY real video-confirmed items. No queue of 14 failed
+  // channels, no 90-second foreground wait, and no surprise TVJ wrap-around
+  // when the verified pool is still small.
+  window.veloraTuneWorkingChannel=(delta=1,preferredId='')=>{
+    clearTimeout(failoverTimer);
+    const {byId}=catalog();
+    const onScreen=state.currentChannel;
+    if(preferredId) {
+      const requested=byId.get(preferredId);
+      const ready=readyList();
+      const target=ready.find(c=>c.id===preferredId)||
+        (ready.length?ready[0]:requested);
+      quietFindMore();
+      if(!target) {
+        message('No channel has verified video yet. Checking sources in the background.');
+        return false;
+      }
+      if(target.id===onScreen?.id&&activePlaying())return true;
+      selectChannel(target.id,true);
+      return true;
+    }
+
+    const verified=readyList();
+    quietFindMore();
+    if(!verified.length) {
+      message('No video-verified channels yet. Open Search to try a channel.');
+      return false;
+    }
+    const currentIndex=verified.findIndex(c=>c.id===onScreen?.id);
+    const step=delta<0?-1:1;
+    let nextIndex;
+    if(currentIndex<0)nextIndex=step>0?0:verified.length-1;
+    else nextIndex=currentIndex+step;
+    if(nextIndex<0||nextIndex>=verified.length) {
+      if(verified.length>=3)nextIndex=(nextIndex+verified.length)%verified.length;
+      else {
+        message('Only '+countLabel()+' available. Checking for more in the background.');
+        return false;
+      }
+    }
+    const next=verified[nextIndex];
+    if(!next||next.id===onScreen?.id) {
+      message('Only '+countLabel()+' available. Checking for more.');
+      return false;
+    }
+    // This is ONE known channel selection, not a scan on the visible player.
+    selectChannel(next.id,true);
+    return true;
+  };
+
+  const reportBefore=v7ReportPlayback;
+  v7ReportPlayback=function(c,url,ok,reason='',final=false) {
+    reportBefore(c,url,ok,reason,final);
+    if(ok===true) {
+      mark(c);
+      autoFailover=false;
+      return;
+    }
+    if(final===true) {
+      fail(c);
+      if(state.currentChannel?.id===c?.id &&
+         document.getElementById('view-live')?.classList.contains('active')) {
+        clearTimeout(failoverTimer);
+        failoverTimer=setTimeout(()=>advanceAfterFailure(c),100);
+      }
+    }
+  };
+
+  function advanceAfterFailure(c) {
+    if(state.currentChannel?.id!==c?.id||autoFailover)return;
+    const remaining=readyList().filter(x=>x.id!==c.id);
+    if(!remaining.length) {
+      message('No other verified channels yet. VELORA is checking more quietly.');
+      quietFindMore();
+      return;
+    }
+    autoFailover=true;
+    // Use only the next verified channel; do not expose failed stream attempts.
+    const position=order.indexOf(c.id);
+    const choice=remaining.find(x=>order.indexOf(x.id)>position)||remaining[0];
+    selectChannel(choice.id,true);
+    setTimeout(()=>{autoFailover=false},1000);
+  }
+
+  // V7's original unavailable overlay remains for explicit Search selections.
+  // On a failed remote selection, the report handler above switches to a known
+  // good channel. It does not initiate another visible search.
+  const originalSelect=selectChannel;
+  selectChannel=function(id,autoplay=true) {
+    clearTimeout(failoverTimer);
+    return originalSelect(id,autoplay);
+  };
+
+  function isCandidate(c) {
+    if(!c?.id||working(c)||blocked.get(c.id)>Date.now()||
+        V7_SESSION_FAILED_IDS.has(c.id))return false;
+    if(typeof v7IsJamaicanChannel==='function' &&
+       v7IsJamaicanChannel(c)&&!v7IsTVJ(c))return false;
+    if(!v7LiveCandidates(c).length)return false;
+    const last=checked.get(c.id)||0;
+    return Date.now()-last>RETRY_MS;
+  }
+  function priority(c) {
+    const played=Date.parse(c.lastPlaybackSuccessAt||0)||0;
+    const failed=Date.parse(c.lastPlaybackFailureAt||0)||0;
+    if(played>failed&&Date.now()-played<24*3600000)return 100000;
+    if(c.availability==='up')return 4000;
+    if((c.sources||[]).some(s=>s.health==='up'))return 2000;
+    if(c.availability==='down')return -5000;
+    return 0;
+  }
+  function probeVideo(c,url,ms=PROBE_MS) {
+    return new Promise(resolve=>{
+      if(!url)return resolve(false);
+      let finished=false,hls=null,frameId=null;
+      const v=document.createElement('video');
+      v.muted=true;v.defaultMuted=true;v.autoplay=true;
+      v.playsInline=true;v.setAttribute('playsinline','');
+      v.preload='auto';
+      // Must be attached for decoded frames on Android WebView/Chrome.
+      v.style.cssText='position:fixed;left:-9999px;top:0;width:8px;height:8px;opacity:0;pointer-events:none;';
+      document.body.appendChild(v);
+      const finish=ok=>{
+        if(finished)return;
+        finished=true;
+        clearTimeout(timer);clearInterval(poll);
+        try{if(frameId!==null)v.cancelVideoFrameCallback?.(frameId)}catch{}
+        try{hls?.destroy()}catch{}
+        try{v.pause();v.removeAttribute('src');v.load()}catch{}
+        v.remove();
+        resolve(!!ok);
+      };
+      const decoded=()=>v.videoWidth>0&&v.videoHeight>0&&!v.paused&&v.readyState>=2&&v.currentTime>.08;
+      const poll=setInterval(()=>{if(decoded())finish(true)},250);
+      const timer=setTimeout(()=>finish(false),ms);
+      v.onerror=()=>finish(false);
+      v.onloadeddata=()=>{v.play().catch(()=>{})};
+      v.oncanplay=()=>{v.play().catch(()=>{})};
+      if(typeof v.requestVideoFrameCallback==='function') {
+        try {
+          frameId=v.requestVideoFrameCallback(()=>{
+            if(v.videoWidth>0&&v.videoHeight>0)finish(true);
+          });
+        }catch{}
+      }
+      try {
+        if(window.Hls&&Hls.isSupported()&&(/\.m3u8(?:$|\?)/i.test(url)||url.includes('/api/public/'))) {
+          hls=new Hls({enableWorker:true,maxBufferLength:3,manifestLoadingTimeOut:4000,
+            levelLoadingTimeOut:4000,fragLoadingTimeOut:4000});
+          hls.on(Hls.Events.ERROR,(_,detail)=>{if(detail?.fatal)finish(false)});
+          hls.attachMedia(v);
+          hls.loadSource(url);
+          hls.on(Hls.Events.MANIFEST_PARSED,()=>{v.play().catch(()=>{})});
+        } else {
+          v.src=url;v.load();v.play().catch(()=>{});
+        }
+      } catch {finish(false)}
+    });
+  }
+  async function checkCandidate(c,epoch) {
+    if(epoch!==generation||document.hidden||!isCandidate(c))return;
+    checked.set(c.id,Date.now());
+    const urls=v7LiveCandidates(c).slice(0,2);
+    let ok=false;
+    for(const url of urls) {
+      if(epoch!==generation||document.hidden)break;
+      ok=await probeVideo(c,url);
+      if(ok)break;
+    }
+    if(epoch!==generation)return;
+    if(ok)mark(c);
+    else blocked.set(c.id,Date.now()+FAIL_MS);
+  }
+  function discoveryPool() {
+    const {rows}=catalog();
+    const current=state.currentChannel?.id;
+    return rows.filter(c=>c.id!==current&&isCandidate(c))
+      .map((c,i)=>({c,i,score:priority(c)}))
+      .sort((a,b)=>b.score-a.score||a.i-b.i)
+      .slice(0,DISCOVERY_LIMIT).map(x=>x.c);
+  }
+  function startDiscovery() {
+    if(scanning||document.hidden)return;
+    const queue=discoveryPool();
+    if(!queue.length)return;
+    scanning=true;
+    const epoch=++generation;
+    let next=0;
+    const worker=async()=>{
+      while(epoch===generation&&!document.hidden&&next<queue.length) {
+        const c=queue[next++];
+        await checkCandidate(c,epoch);
+      }
+    };
+    Promise.all(Array.from({length:MAX_WORKERS},worker)).finally(()=>{
+      if(epoch===generation)scanning=false;
+    });
+  }
+  function kick() {
+    clearTimeout(startupTimer);
+    startupTimer=setTimeout(()=>{
+      if(!document.hidden) {
+        catalog();
+        // Adopt the channel already playing even if it was started before V17.
+        if(activePlaying()&&state.currentChannel)mark(state.currentChannel);
+        startDiscovery();
+      }
+    },1300);
+  }
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){generation++;scanning=false}
+    else kick();
+  });
+  document.addEventListener('playing',e=>{
+    if(e.target?.id!=='inlineLive')return;
+    setTimeout(()=>{if(activePlaying()&&state.currentChannel)mark(state.currentChannel)},800);
+  },true);
+  window.veloraVerifiedChannels={
+    ids:()=>readyList().map(c=>c.id),
+    count:()=>readyList().length,
+    scan:()=>startDiscovery()
+  };
+  kick();
+})();
