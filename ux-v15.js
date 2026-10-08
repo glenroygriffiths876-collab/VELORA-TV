@@ -69,7 +69,7 @@
 
     drawChannelList('');
     if(initial&&document.getElementById('view-live')?.classList.contains('active')){
-      setTimeout(()=>selectChannel(initial.id,true),40);
+      setTimeout(()=>{if(typeof window.veloraTuneWorkingChannel==='function')window.veloraTuneWorkingChannel(1,initial.id);else selectChannel(initial.id,true)},40);
     }
   };
 
@@ -115,6 +115,7 @@
     return working.map(c=>c.id).filter(Boolean);
   }
   function changeChannel(delta){
+    if(typeof window.veloraTuneWorkingChannel==='function')return window.veloraTuneWorkingChannel(delta);
     const ids=channelIds();if(!ids.length)return toast('No channels available.');
     let i=state.currentChannel?ids.indexOf(state.currentChannel.id):-1;
     if(i<0)i=delta>0?-1:0;

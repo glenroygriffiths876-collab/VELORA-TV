@@ -570,7 +570,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
 
     const goodFrame=()=>{
       if(settled||token!==V7_SELECTION_TOKEN)return;
-      if((v.videoWidth||0)>0&&(v.videoHeight||0)>0){
+      if((v.videoWidth||0)>0&&(v.videoHeight||0)>0&&v.readyState>=2&&!v.paused&&v.currentTime>0.1){
         settled=true;cleanupTimers();
         v.classList.remove('hidden');
         if(panel)panel.classList.add('hidden');
@@ -581,8 +581,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
         v7ReportPlayback(c,url,true,'video-frame');
         return;
       }
-      verifyStarted=false;
-      fail('no-video-frame');
+      frameTimer=setTimeout(goodFrame,400);
     };
 
     if(autoplay){
@@ -606,7 +605,9 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
           }
         });
       }catch{}
-      frameTimer=setTimeout(()=>{if(!frameSeen)goodFrame()},3200);
+      // A metadata dimension is not proof of a decoded picture. Devices with
+      // requestVideoFrameCallback must actually deliver a video frame.
+      frameTimer=setTimeout(()=>{if(!frameSeen)fail('no-decoded-video-frame')},9200);
     }else{
       frameTimer=setTimeout(goodFrame,1800);
     }

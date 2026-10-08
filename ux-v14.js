@@ -64,6 +64,7 @@
   }
 
   function changeChannel(delta){
+    if(typeof window.veloraTuneWorkingChannel==='function')return window.veloraTuneWorkingChannel(delta);
     const ids=visibleChannelIds();
     if(!ids.length){toast('No channels in this list.');return}
     let index=state.currentChannel?ids.indexOf(state.currentChannel.id):-1;
