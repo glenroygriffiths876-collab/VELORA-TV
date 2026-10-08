@@ -248,12 +248,13 @@ function v7ChannelRecentlyHealthy(c){
   return played>failed&&Date.now()-played<2*3600000;
 }
 function v7DefaultBrowseChannels(){
-  const allowed=filteredChannels().filter(c=>(!v7IsJamaicanChannel(c)||v7IsTVJ(c))&&!V7_SESSION_FAILED_IDS.has(c.id));
-  const knownGood=allowed.filter(v7ChannelRecentlyHealthy);
-  // The default Live browse and remote never silently promote unverified
-  // channels. People can still explicitly search the full channel catalogue.
-  // The V16 tuner tests candidates privately and promotes only verified video.
-  return knownGood;
+  // Include all locally verified streams, including Jamaican feeds actually
+  // playable from the viewer's network. No HTTP-only "healthy" shortcuts.
+  if(window.veloraVerifiedChannels?.ids){
+    const ids=new Set(window.veloraVerifiedChannels.ids());
+    return filteredChannels().filter(c=>ids.has(c.id));
+  }
+  return filteredChannels().filter(v7ChannelRecentlyHealthy);
 }
 function v7LiveMatches(q=''){
   const grp=state.currentFilter||'All',needle=String(q||'').trim().toLowerCase();
