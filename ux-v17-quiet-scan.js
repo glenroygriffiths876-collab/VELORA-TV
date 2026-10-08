@@ -6,7 +6,9 @@
   const FRESH_MS=90*60*1000;
   const RETRY_MS=15*60*1000;
   const FAIL_MS=20*60*1000;
-  const DISCOVERY_LIMIT=70;
+  const DISCOVERY_LIMIT=50;
+  const INITIAL_SCAN_ALLOWANCE=120;
+  const MAX_SCAN_ALLOWANCE=360;
   const MAX_WORKERS=2;
   const PROBE_MS=6500;
   const known=new Map();
@@ -20,6 +22,10 @@
   let startupTimer=null;
   let lastMessage=0;
   let lastGoodId='';
+  let pendingNext=null;
+  let checkedInSession=0;
+  let scanAllowance=INITIAL_SCAN_ALLOWANCE;
+  let scanRestartTimer=null;
 
   function fingerprint(c) {
     // Keep any source URLs/tokens out of persistent storage.
@@ -66,7 +72,12 @@
   }
   function readyList() {
     const {byId}=catalog();
-    return order.map(id=>byId.get(id)).filter(working);
+    // The remote follows the order channels became video-verified, not the
+    // original (frequently changing) catalogue popularity rankings.
+    // Keep the main TVJ first, but never mistake TVJ Sports for TVJ.
+    const verified=[...known.keys()].map(id=>byId.get(id)).filter(working);
+    const tvj=verified.find(c=>v7IsTVJ(c));
+    return tvj?[tvj,...verified.filter(c=>c.id!==tvj.id)]:verified;
   }
   function countLabel() {
     const n=readyList().length;
@@ -78,6 +89,17 @@
     checked.set(c.id,Date.now());
     known.set(c.id,{at:Date.now(),fingerprint:fingerprint(c)});
     remember();
+    // A CH+ request at the end of the known list waits briefly for the next
+    // genuinely working channel, without blanking or changing the picture.
+    if(fromBackground && pendingNext &&
+       Date.now()<pendingNext.until && !pendingNext.seen.has(c.id) &&
+       state.currentChannel?.id===pendingNext.fromId && activePlaying()) {
+      const prior=state.currentChannel;
+      pendingNext=null;
+      lastGoodId=prior.id;
+      selectChannel(c.id,true);
+      return;
+    }
     if(document.getElementById('view-live')?.classList.contains('active')) {
       const input=document.getElementById('channelSearch');
       if(!input?.value)try{drawChannelList('')}catch{}
@@ -106,7 +128,8 @@
       toast(s);message.previous=s;lastMessage=now;
     }
   }
-  function quietFindMore() {
+  function quietFindMore(urgent=false) {
+    if(urgent)scanAllowance=Math.min(MAX_SCAN_ALLOWANCE,scanAllowance+40);
     if(!scanning)startDiscovery();
   }
   function activePlaying() {
@@ -123,6 +146,7 @@
     const {byId}=catalog();
     const onScreen=state.currentChannel;
     if(preferredId) {
+      pendingNext=null;
       const requested=byId.get(preferredId);
       const ready=readyList();
       const target=ready.find(c=>c.id===preferredId)||
@@ -155,11 +179,16 @@
     }
     else nextIndex=currentIndex+step;
     if(nextIndex<0||nextIndex>=verified.length) {
-      if(verified.length>=3)nextIndex=(nextIndex+verified.length)%verified.length;
-      else {
-        message('Only '+countLabel()+' available. Checking for more in the background.');
-        return false;
+      // Never wrap at the end of the VERIFIED lineup: three channels is not
+      // a licence to loop TVJ -> NBC -> Fox -> TVJ forever.
+      quietFindMore(true);
+      if(step>0&&onScreen?.id&&activePlaying()) {
+        pendingNext={fromId:onScreen.id,until:Date.now()+8500,
+          seen:new Set(verified.map(c=>c.id))};
       }
+      message('Only '+countLabel()+' found so far. Staying on '+
+        String(onScreen?.name||'this channel')+' while checking more.');
+      return false;
     }
     const next=verified[nextIndex];
     if(!next||next.id===onScreen?.id) {
@@ -167,6 +196,7 @@
       return false;
     }
     // This is ONE known channel selection, not a scan on the visible player.
+    pendingNext=null;
     if(onScreen?.id&&working(onScreen))lastGoodId=onScreen.id;
     selectChannel(next.id,true);
     return true;
@@ -213,6 +243,7 @@
   const originalSelect=selectChannel;
   selectChannel=function(id,autoplay=true) {
     clearTimeout(failoverTimer);
+    if(pendingNext && pendingNext.fromId!==id)pendingNext=null;
     return originalSelect(id,autoplay);
   };
 
@@ -305,7 +336,10 @@
   }
   function startDiscovery() {
     if(scanning||document.hidden)return;
-    const queue=discoveryPool();
+    clearTimeout(scanRestartTimer);
+    const remaining=Math.max(0,scanAllowance-checkedInSession);
+    if(!remaining)return;
+    const queue=discoveryPool().slice(0,remaining);
     if(!queue.length)return;
     scanning=true;
     const epoch=++generation;
@@ -313,11 +347,18 @@
     const worker=async()=>{
       while(epoch===generation&&!document.hidden&&next<queue.length) {
         const c=queue[next++];
+        checkedInSession++;
         await checkCandidate(c,epoch);
       }
     };
     Promise.all(Array.from({length:MAX_WORKERS},worker)).finally(()=>{
-      if(epoch===generation)scanning=false;
+      if(epoch!==generation)return;
+      scanning=false;
+      // The old scanner stopped after the first small batch. Continue with
+      // fresh candidates, but cap scans to protect mobile data and battery.
+      if(!document.hidden&&checkedInSession<scanAllowance&&discoveryPool().length) {
+        scanRestartTimer=setTimeout(startDiscovery,1200);
+      }
     });
   }
   function kick() {
@@ -332,8 +373,11 @@
     },1300);
   }
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){generation++;scanning=false}
-    else kick();
+    if(document.hidden){
+      generation++;scanning=false;
+      clearTimeout(scanRestartTimer);
+      pendingNext=null;
+    } else kick();
   });
   document.addEventListener('playing',e=>{
     if(e.target?.id!=='inlineLive')return;
@@ -342,7 +386,9 @@
   window.veloraVerifiedChannels={
     ids:()=>readyList().map(c=>c.id),
     count:()=>readyList().length,
-    scan:()=>startDiscovery()
+    scan:()=>quietFindMore(true),
+    scanStatus:()=>({verified:readyList().length,checked:checkedInSession,
+      scanning,limit:scanAllowance})
   };
   kick();
 })();
