@@ -229,7 +229,7 @@ if(state.user&&document.getElementById('view-admin')?.classList.contains('active
 
 function v7IsTVJ(c){
   const key=v7ChannelNameKey(c);
-  return key==='tvj'||key==='television jamaica'||key.startsWith('tvj ');
+  return key==='tvj'||key==='television jamaica'||key==='tvj television jamaica';
 }
 function v7IsJamaicanChannel(c){
   const group=String(c?.group||'').trim().toLowerCase();
@@ -240,26 +240,20 @@ function v7IsJamaicanChannel(c){
     || /(^|\b)jamaica(n)?(\b|$)/i.test(source);
 }
 function v7ChannelRecentlyHealthy(c){
-  if(v7IsTVJ(c))return true;
-  if(V7_SESSION_FAILED_IDS.has(c.id))return false;
-  const now=Date.now();
-  const availAt=Date.parse(c.lastAvailabilityCheck||0)||0;
-  if(String(c.availability||'').toLowerCase()==='up'&&(!availAt||now-availAt<24*3600000))return true;
-  const playbackAt=Date.parse(c.lastPlaybackSuccessAt||0)||0;
-  if(playbackAt&&now-playbackAt<7*24*3600000)return true;
-  return (c.sources||[]).some(src=>{
-    const checked=Date.parse(src.lastChecked||0)||0;
-    return String(src.health||'').toLowerCase()==='up'&&(!checked||now-checked<24*3600000);
-  });
+  // A successful HTTP probe, an official TVJ name, or a source-health flag
+  // cannot prove that a viewer received decodable video.
+  if(!c||V7_SESSION_FAILED_IDS.has(c.id))return false;
+  const played=Date.parse(c.lastPlaybackSuccessAt||0)||0;
+  const failed=Date.parse(c.lastPlaybackFailureAt||0)||0;
+  return played>failed&&Date.now()-played<2*3600000;
 }
 function v7DefaultBrowseChannels(){
   const allowed=filteredChannels().filter(c=>(!v7IsJamaicanChannel(c)||v7IsTVJ(c))&&!V7_SESSION_FAILED_IDS.has(c.id));
   const knownGood=allowed.filter(v7ChannelRecentlyHealthy);
-  // If health data is still warming up after a deployment, keep a very small
-  // popularity-ranked fallback instead of exposing the whole unverified pool.
-  if(knownGood.length>=12)return knownGood;
-  const fallback=allowed.filter(c=>!v7ChannelRecentlyHealthy(c)).slice(0,Math.max(0,12-knownGood.length));
-  return [...knownGood,...fallback];
+  // The default Live browse and remote never silently promote unverified
+  // channels. People can still explicitly search the full channel catalogue.
+  // The V16 tuner tests candidates privately and promotes only verified video.
+  return knownGood;
 }
 function v7LiveMatches(q=''){
   const grp=state.currentFilter||'All',needle=String(q||'').trim().toLowerCase();
