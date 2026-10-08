@@ -48,7 +48,7 @@ jobs:
           test -s ux-v16-live-tuning.js
           test -s ux-v17-quiet-scan.js
           grep -Fq 'ux-v16-live-tuning.js?v=2' index.html
-          grep -Fq 'ux-v17-quiet-scan.js?v=2' index.html
+          grep -Fq 'ux-v17-quiet-scan.js?v=3' index.html
           test -f index.html
           test -f styles.css
           test -f real-v5.css
@@ -96,7 +96,7 @@ jobs:
           test -s /tmp/velora-site/ux-v17-quiet-scan.js
           cmp -s ux-v17-quiet-scan.js /tmp/velora-site/ux-v17-quiet-scan.js
           grep -Fq 'ux-v16-live-tuning.js?v=2' /tmp/velora-site/index.html
-          grep -Fq 'ux-v17-quiet-scan.js?v=2' /tmp/velora-site/index.html
+          grep -Fq 'ux-v17-quiet-scan.js?v=3' /tmp/velora-site/index.html
           cp demo-authorized-catalog.json demo-distributor-catalog.csv demo-authorized-playlist.m3u demo-epg.xml /tmp/velora-site/ 2>/dev/null || true
           touch /tmp/velora-site/.nojekyll
           cd /tmp/velora-site

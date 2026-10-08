@@ -19,6 +19,7 @@
   let failoverTimer=null;
   let startupTimer=null;
   let lastMessage=0;
+  let lastGoodId='';
 
   function fingerprint(c) {
     // Keep any source URLs/tokens out of persistent storage.
@@ -145,7 +146,13 @@
     const currentIndex=verified.findIndex(c=>c.id===onScreen?.id);
     const step=delta<0?-1:1;
     let nextIndex;
-    if(currentIndex<0)nextIndex=step>0?0:verified.length-1;
+    if(currentIndex<0) {
+      // A stream that died should return to the previous working channel,
+      // rather than jumping arbitrarily to TVJ at the start of the list.
+      const previous=verified.findIndex(c=>c.id===lastGoodId);
+      if(previous>=0){selectChannel(verified[previous].id,true);return true}
+      nextIndex=step>0?0:verified.length-1;
+    }
     else nextIndex=currentIndex+step;
     if(nextIndex<0||nextIndex>=verified.length) {
       if(verified.length>=3)nextIndex=(nextIndex+verified.length)%verified.length;
@@ -160,6 +167,7 @@
       return false;
     }
     // This is ONE known channel selection, not a scan on the visible player.
+    if(onScreen?.id&&working(onScreen))lastGoodId=onScreen.id;
     selectChannel(next.id,true);
     return true;
   };
@@ -193,7 +201,8 @@
     autoFailover=true;
     // Use only the next verified channel; do not expose failed stream attempts.
     const position=order.indexOf(c.id);
-    const choice=remaining.find(x=>order.indexOf(x.id)>position)||remaining[0];
+    const choice=remaining.find(x=>x.id===lastGoodId)||
+      remaining.find(x=>order.indexOf(x.id)>position)||remaining[0];
     selectChannel(choice.id,true);
     setTimeout(()=>{autoFailover=false},1000);
   }
