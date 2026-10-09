@@ -62,7 +62,7 @@
    // Do not claim a generic "Live" label is a programme title.
    const now=String(c.programTitle||c.now||'').trim();
    if(now&&!/^(live|live tv|live programming|live broadcast|unknown)$/i.test(now))
-     out.push({title:now,description:'',now:true});
+     out.push({title:now,description:'',airtimeUnconfirmed:true});
    return out;
  }
  function lookup(c,q) {
@@ -74,7 +74,7 @@
      if(!matchesProgramme(p,query))return null;
      const from=p.startAt?Date.parse(p.startAt):0,to=p.endAt?Date.parse(p.endAt):0;
      let rank=1,label='GUIDE LISTING • AIRTIME UNCONFIRMED';
-     if(p.now || (from&&to&&from<=now&&to>now)){rank=3;label='ON NOW'}
+     if(from&&to&&from<=now&&to>now){rank=3;label='ON NOW'}
      else if(from>now&&from<now+24*3600000){rank=2;label='UPCOMING'}
      else if((to&&to<now)||(from&&from>=now+24*3600000))return null;
      return {title,rank,label,startAt:p.startAt||'',description:String(p.description||'')};
