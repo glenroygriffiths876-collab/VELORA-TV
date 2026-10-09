@@ -27,7 +27,8 @@
       (scan?.scanning?'Finding more playable channels… • target '+target.toLocaleString():
         'Only confirmed video appears here • target '+target.toLocaleString());
     const q=String(document.getElementById('veloraVerifiedSearch')?.value||'').trim().toLowerCase();
-    const filtered=rows.filter(c=>(c.name+' '+(c.group||'')).toLowerCase().includes(q));
+    const filtered=rows.filter(c=>(c.name+' '+(c.group||'')).toLowerCase().includes(q)||
+      (q&&window.veloraProgrammeLookup?.(c,q)));
     const list=holder.querySelector('#veloraVerifiedRows');
     if(!list)return;
     const html=filtered.map((c,i)=> {
@@ -35,7 +36,11 @@
       return '<button class="veloraVerifiedRow'+(selected?' active':'')+
         '" type="button" data-channel="'+escapeText(c.id)+'" aria-label="Play '+escapeText(c.name)+'">'+
         '<span class="veloraVerifiedNumber">'+(i+1)+'</span>'+
-        '<span class="veloraVerifiedName">'+escapeText(c.name)+'</span>'+
+        '<span class="veloraVerifiedName">'+escapeText(c.name)+
+          (q&&window.veloraProgrammeLookup?.(c,q)?
+            '<small class="veloraProgrammeSubtitle">'+
+            escapeText(window.veloraProgrammeLookup(c,q).title)+'</small>':'')+
+          '</span>'+
         '<span class="veloraVerifiedPlaying">'+(selected?'NOW':'<span class="veloraVerifiedDot"></span>')+'</span>'+
         '</button>';
     }).join('');

@@ -189,8 +189,10 @@
     excluded.add(c.id);
     V7_SESSION_FAILED_IDS.add(c.id);
     v7ReportPlayback(c,c.url || '',false,'playback-stopped',true);
-    toast('Video stopped. Finding another working channel…');
-    window.veloraTuneWorkingChannel(1);
+    // Playback interruptions never override the channel the viewer picked.
+    v7ResetInline();
+    v7ShowLiveStatus(c,c.name,'Playback interrupted. Retry the same channel when ready.',false);
+    toast('Playback interrupted. Retry this channel when ready.');
   }
   window.veloraChannelPlaybackLost = onPlaybackLost;
 

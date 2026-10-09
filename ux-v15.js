@@ -63,7 +63,7 @@
         <section class="veloraLiveSearchShell" id="veloraLiveSearchShell">
           <div class="veloraSearchBar">
             <div class="veloraSearchIcon">⌕</div>
-            <input id="channelSearch" type="search" name="velora-channel-search" role="searchbox" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" aria-autocomplete="none" data-form-type="other" data-lpignore="true" data-1p-ignore placeholder="Search channels…">
+            <input id="channelSearch" type="search" name="velora-channel-search" role="searchbox" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" aria-autocomplete="none" data-form-type="other" data-lpignore="true" data-1p-ignore placeholder="Search channels or programmes…">
             <button class="veloraSearchCancel" id="veloraSearchCancel" type="button">Cancel</button>
           </div>
           <div class="veloraSearchHint" id="veloraSearchHint">Tap the search bar to browse or find a channel.</div>
