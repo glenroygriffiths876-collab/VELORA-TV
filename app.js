@@ -102,7 +102,38 @@ async function connectProvider(){if(!location.protocol.startsWith('http'))return
 function parseM3U(text){const lines=text.replace(/\r/g,'').split('\n');const out=[];let meta=null;for(const raw of lines){const line=raw.trim();if(line.startsWith('#EXTINF:')){const attr={};for(const m of line.matchAll(/([\w-]+)="([^"]*)"/g))attr[m[1]]=m[2];const name=(line.split(',').slice(1).join(',')||attr['tvg-name']||'Channel').trim();meta={id:attr['tvg-id']||slug(name)+'-'+out.length,num:String(out.length+1).padStart(3,'0'),name,group:attr['group-title']||'Other',logo:attr['tvg-logo']||'',now:'Live',next:'',desc:'Imported authorized feed'}}else if(line&&!line.startsWith('#')&&meta){out.push({...meta,url:line});meta=null}}return out}
 function parseCSV(text){const rows=[];let row=[],cell='',q=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'&&q&&n==='"'){cell+='"';i++;continue}if(c==='"'){q=!q;continue}if(c===','&&!q){row.push(cell);cell='';continue}if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&n==='\n')i++;row.push(cell);cell='';if(row.some(x=>x.trim()!==''))rows.push(row);row=[];continue}cell+=c}row.push(cell);if(row.some(x=>x.trim()!==''))rows.push(row);if(rows.length<2)return[];const headers=rows[0].map(h=>h.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_'));return rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,(r[i]||'').trim()]))) }
 function csvToCatalog(text,provider){const rows=parseCSV(text);const val=(r,...keys)=>{for(const k of keys)if(r[k])return r[k];return''};return rows.map((r,i)=>{const title=val(r,'title','name','program_title');if(!title)return null;const rawType=val(r,'type','format','content_type').toLowerCase();const type=rawType.includes('series')||rawType.includes('show')?'series':'movie';const territories=val(r,'territories','territory','avail_territories').split(/[|; ]+/).filter(Boolean).map(x=>x.toUpperCase());return {id:`${provider.id}:csv:${i}`,type,title,year:val(r,'year','production_year','release_year'),rating:val(r,'rating','content_rating')||'NR',genre:val(r,'genre','genres','category')||'Other',quality:val(r,'quality','resolution')||'HD',description:val(r,'description','synopsis','plot','long_description'),art:val(r,'art','poster','poster_url','image_2_3'),backdrop:val(r,'backdrop','backdrop_url','image_16_9'),url:val(r,'url','stream_url','playback_url','video_url'),rights:{territories:territories.length?territories:[provider.territory||'JM'],starts:val(r,'rights_start','start_date','license_start')||provider.rightsStart||null,ends:val(r,'rights_end','end_date','license_end')||provider.rightsEnd||null}}}).filter(Boolean)}
-function parseXMLTV(text){const doc=new DOMParser().parseFromString(text,'text/xml');const out={};const names={};doc.querySelectorAll('channel').forEach(ch=>{const id=ch.getAttribute('id');const name=ch.querySelector('display-name')?.textContent?.trim();if(id&&name)names[id]=name});doc.querySelectorAll('programme').forEach(p=>{const id=p.getAttribute('channel');const title=p.querySelector('title')?.textContent?.trim()||'Programme';const start=p.getAttribute('start')||'';const key=id;out[key]??=[];out[key].push({title,time:formatXmlTime(start)});if(names[id]){out[names[id]]??=[];out[names[id]].push({title,time:formatXmlTime(start)})}});Object.values(out).forEach(a=>a.sort((x,y)=>x.time.localeCompare(y.time)));return out}
+function parseXMLTV(text){
+ const xml=new DOMParser().parseFromString(text,'text/xml'),out={},names={};
+ if(xml.querySelector('parsererror'))return out;
+ xml.querySelectorAll('channel').forEach(ch=>{
+   const id=ch.getAttribute('id'),name=ch.querySelector('display-name')?.textContent?.trim();
+   if(id&&name)names[id]=name;
+ });
+ function parsedTime(s){
+   const m=String(s||'').match(/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)?\s*([+-]\d{4})?/);
+   if(!m)return null;
+   const zone=m[7]||'+0000',iso=m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+(m[6]||'00')+zone.slice(0,3)+':'+zone.slice(3);
+   const t=Date.parse(iso);
+   return Number.isFinite(t)?new Date(t).toISOString():null;
+ }
+ const low=Date.now()-3*3600000,high=Date.now()+48*3600000;
+ let count=0;
+ xml.querySelectorAll('programme').forEach(p=>{
+   if(count>=30000)return;
+   const id=p.getAttribute('channel'),title=p.querySelector('title')?.textContent?.trim();
+   const description=p.querySelector('desc')?.textContent?.trim()||'';
+   const startAt=parsedTime(p.getAttribute('start')),endAt=parsedTime(p.getAttribute('stop'));
+   if(!id||!title||!startAt)return;
+   const from=Date.parse(startAt),to=endAt?Date.parse(endAt):from+3600000;
+   if(to<low||from>high)return;
+   const item={title,description,time:formatXmlTime(p.getAttribute('start')||''),startAt,endAt};
+   (out[id]??=[]).push(item);
+   if(names[id]&&names[id]!==id)(out[names[id]]??=[]).push(item);
+   count++;
+ });
+ Object.values(out).forEach(a=>a.sort((x,y)=>String(x.startAt||'').localeCompare(String(y.startAt||''))));
+ return out;
+}
 function formatXmlTime(v){if(!v||v.length<12)return'';return `${v.slice(8,10)}:${v.slice(10,12)}`}
 function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
 function showView(name){if(name==='admin'&&state.user?.role!=='admin'){toast('Admin access is restricted to the VELORA owner.');name='home'}window.veloraTrack?.('view',{view:name});document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById('view-'+name)?.classList.add('active');document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));document.getElementById('profileMenu').classList.remove('on');if(name==='home')renderHome();if(name==='live')renderLive();if(name==='movies')renderCatalogView('movie');if(name==='series')renderCatalogView('series');if(name==='open'){renderOpenLibrary();if(!state.profile.kids)ensureOpenLibrary()}if(name==='search')renderSearch();if(name==='mylist')renderMyList();if(name==='settings')renderSettings();if(name==='admin')renderAdmin();window.scrollTo({top:0,behavior:'instant'})}
