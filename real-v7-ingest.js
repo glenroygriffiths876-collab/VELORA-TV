@@ -613,7 +613,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
     if(state.hls){try{state.hls.destroy()}catch{}state.hls=null}
     try{v.pause();v.removeAttribute('src');v.load()}catch{}
     v7ReportPlayback(c,url,false,'no-compatible-video');
-    if(index+1<urls.length){
+    if(index+1<urls.length&&!fastChoice){
       setTimeout(()=>v7PlayLiveDirect(c,urls,autoplay,index+1,token),100);
     }else if(v7TryNativePlayer(c,urls,token)){
       return;
@@ -622,7 +622,10 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
     }
   };
 
-  timeout=setTimeout(fail,10000);
+  // Already video-verified remote choices must fail quickly rather than
+  // leave the user staring at a loading screen for ten seconds per source.
+  const fastChoice=window.veloraFastLiveUrls?.(c)?.length>0;
+  timeout=setTimeout(fail,fastChoice?3800:10000);
   v.onerror=fail;
   v.onloadedmetadata=confirmVideo;
   v.onloadeddata=confirmVideo;
@@ -658,12 +661,16 @@ selectChannel=async function(id,autoplay=true){
 
   const t=document.getElementById('nowChannel'),p=document.getElementById('nowProgram'),fallback=document.getElementById('openProviderFallback');
   if(t)t.textContent=c.name;
-  if(p)p.textContent=`${c.now||'Live'} • ${v7IsPublicDirectoryItem(c)?'Velora verified stream':(c.access||c.group||'')}`;
+  if(p)p.textContent=`${c.now||'Live'} • Checking video playback…`;
   if(fallback){fallback.hidden=!c.watchUrl;fallback.dataset.v5External=c.watchUrl||'';fallback.textContent='Publisher source ↗'}
 
   v7ResetInline();
-  v7ShowLiveStatus(c,c.name,'Finding the best live source for your connection…',true);
+  v7ShowLiveStatus(c,c.name,'Starting channel…',true);
 
+  // Use the precise URL that decoded video on this device. This skips the
+  // expensive server resolve/probe round trip on every CH+ / CH− press.
+  const ready=window.veloraFastLiveUrls?.(c);
+  if(ready?.length)return v7PlayLiveDirect(c,ready,autoplay,0,token);
   const urls=await v7ResolveCandidates(c);
   if(token!==V7_SELECTION_TOKEN)return;
   if(urls.length)return v7PlayLiveDirect(c,urls,autoplay,0,token);

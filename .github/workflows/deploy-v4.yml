@@ -45,10 +45,14 @@ jobs:
           node --check ux-v15.js
           node --check ux-v16-live-tuning.js
           node --check ux-v17-quiet-scan.js
+          node --check ux-v18-guide.js
           test -s ux-v16-live-tuning.js
           test -s ux-v17-quiet-scan.js
+          test -s ux-v18-guide.js
+          test -s ux-v18-guide.css
           grep -Fq 'ux-v16-live-tuning.js?v=2' index.html
-          grep -Fq 'ux-v17-quiet-scan.js?v=5' index.html
+          grep -Fq 'ux-v17-quiet-scan.js?v=6' index.html
+          grep -Fq 'ux-v18-guide.js?v=1' index.html
           test -f index.html
           test -f styles.css
           test -f real-v5.css
@@ -87,7 +91,7 @@ jobs:
           git fetch origin gh-pages
           git worktree add -B gh-pages /tmp/velora-site origin/gh-pages
           find /tmp/velora-site -mindepth 1 -maxdepth 1 ! -name .git ! -name downloads -exec rm -rf {} +
-          cp index.html app.js styles.css install.css install.js tv-mode.css tv-mode.js auth.css auth-client.js real-v5.css real-v5-data.js real-v5-home.js real-v5-live.js real-v5-runtime.js real-v6.css real-v6-media.js real-v6-ui.js real-v7.css real-v7-ingest.js real-v8-vod.css real-v8-vod.js real-v9-client.css real-v9-client.js real-v10-provider-preview.css real-v10-provider-preview.js ux-v11.css ux-v11.js ux-v12.css ux-v12.js ux-v13.css ux-v13.js ux-v14.css ux-v14.js ux-v15.css ux-v15.js ux-v16-live-tuning.js ux-v17-quiet-scan.js manifest.json sw.js /tmp/velora-site/
+          cp index.html app.js styles.css install.css install.js tv-mode.css tv-mode.js auth.css auth-client.js real-v5.css real-v5-data.js real-v5-home.js real-v5-live.js real-v5-runtime.js real-v6.css real-v6-media.js real-v6-ui.js real-v7.css real-v7-ingest.js real-v8-vod.css real-v8-vod.js real-v9-client.css real-v9-client.js real-v10-provider-preview.css real-v10-provider-preview.js ux-v11.css ux-v11.js ux-v12.css ux-v12.js ux-v13.css ux-v13.js ux-v14.css ux-v14.js ux-v15.css ux-v15.js ux-v16-live-tuning.js ux-v17-quiet-scan.js ux-v18-guide.js ux-v18-guide.css manifest.json sw.js /tmp/velora-site/
           cp -R icons /tmp/velora-site/
           # A green deploy must prove the referenced tuner actually exists in
           # the published Pages artifact. The previous deploy omitted this JS.
@@ -95,8 +99,11 @@ jobs:
           cmp -s ux-v16-live-tuning.js /tmp/velora-site/ux-v16-live-tuning.js
           test -s /tmp/velora-site/ux-v17-quiet-scan.js
           cmp -s ux-v17-quiet-scan.js /tmp/velora-site/ux-v17-quiet-scan.js
+          cmp -s ux-v18-guide.js /tmp/velora-site/ux-v18-guide.js
+          cmp -s ux-v18-guide.css /tmp/velora-site/ux-v18-guide.css
           grep -Fq 'ux-v16-live-tuning.js?v=2' /tmp/velora-site/index.html
-          grep -Fq 'ux-v17-quiet-scan.js?v=5' /tmp/velora-site/index.html
+          grep -Fq 'ux-v17-quiet-scan.js?v=6' /tmp/velora-site/index.html
+          grep -Fq 'ux-v18-guide.js?v=1' /tmp/velora-site/index.html
           cp demo-authorized-catalog.json demo-distributor-catalog.csv demo-authorized-playlist.m3u demo-epg.xml /tmp/velora-site/ 2>/dev/null || true
           touch /tmp/velora-site/.nojekyll
           cd /tmp/velora-site

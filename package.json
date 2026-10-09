@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check app.js && node --check real-v5-data.js && node --check real-v5-home.js && node --check real-v5-live.js && node --check real-v5-runtime.js && node --check real-v6-media.js && node --check real-v6-ui.js && node --check real-v7-ingest.js && node --check real-v8-vod.js && node --check real-v9-client.js && node --check ux-v14.js && node --check ux-v15.js && node --check ux-v16-live-tuning.js && node --check ux-v17-quiet-scan.js && node --check real-v10-provider-preview.js && node --check tv-mode.js"
+    "check": "node --check server.mjs && node --check app.js && node --check real-v5-data.js && node --check real-v5-home.js && node --check real-v5-live.js && node --check real-v5-runtime.js && node --check real-v6-media.js && node --check real-v6-ui.js && node --check real-v7-ingest.js && node --check real-v8-vod.js && node --check real-v9-client.js && node --check ux-v14.js && node --check ux-v15.js && node --check ux-v16-live-tuning.js && node --check ux-v17-quiet-scan.js && node --check ux-v18-guide.js && node --check real-v10-provider-preview.js && node --check tv-mode.js"
   },
   "engines": {
     "node": ">=20"
