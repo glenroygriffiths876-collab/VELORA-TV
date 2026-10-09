@@ -2,7 +2,48 @@
 // A channel is never represented as carrying a game without matching EPG data.
 (() => {
  'use strict';
- const norm=s=>String(s||'').trim().toLowerCase();
+ const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+ const ALIASES=[
+  [/\bchampions league\b|\bucl\b/,['champions league','uefa champions league','ucl']],
+  [/\bnations league\b/,['nations league','uefa nations league','concacaf nations league']],
+  [/\bbarcelona\b|\bbarca\b/,['fc barcelona','barcelona','barca']],
+  [/\blakers\b/,['lakers','los angeles lakers','la lakers']],
+  [/\bmiami heat\b|\bheats?\b/,['miami heat','heat','heats']],
+  [/\bolympics?\b|\bolympic games\b/,['olympic games','olympics','olympic']],
+  [/\bworld cup\b/,['world cup','fifa world cup','cricket world cup','rugby world cup']],
+  [/\bnba\b/,['nba','national basketball association']],
+  [/\bfifa\b/,['fifa','football world cup']],
+  [/\bman utd\b|\bmanchester united\b/,['manchester united','man utd']],
+  [/\breal madrid\b/,['real madrid','madrid']]
+ ];
+ function isNear(a,b){
+   if(a===b)return true;
+   if(Math.abs(a.length-b.length)>1||a.length<4||b.length<4)return false;
+   let i=0,j=0,d=0;
+   while(i<a.length&&j<b.length){
+     if(a[i]===b[j]){i++;j++;continue}
+     if(++d>1)return false;
+     if(a.length>b.length)i++;
+     else if(b.length>a.length)j++;
+     else{i++;j++}
+   }
+   return d+((i<a.length||j<b.length)?1:0)<=1;
+ }
+ function candidatePhrases(q){
+   const raw=norm(q),all=[raw];
+   for(const [pattern,terms] of ALIASES)if(pattern.test(raw))all.push(...terms);
+   return [...new Set(all.map(norm).filter(Boolean))];
+ }
+ function matchesProgramme(p,q){
+   const contents=norm((p.title||'')+' '+String(p.description||''));
+   if(!contents)return false;
+   const words=contents.split(' ');
+   return candidatePhrases(q).some(phrase=>{
+     if(contents.includes(phrase))return true;
+     return phrase.split(' ').every(token=>words.some(word=>isNear(token,word)));
+   });
+ }
+
  const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function guideEntries(c) {
    if(!c)return [];
@@ -27,11 +68,10 @@
  function lookup(c,q) {
    const query=norm(q);
    if(query.length<2)return null;
-   const tokens=query.split(/\s+/).filter(Boolean),now=Date.now();
+   const now=Date.now();
    const results=guideEntries(c).map(p=>{
      const title=String(p.title||'');
-     const hay=norm(title+' '+String(p.description||''));
-     if(!tokens.every(token=>hay.includes(token)))return null;
+     if(!matchesProgramme(p,query))return null;
      const from=p.startAt?Date.parse(p.startAt):0,to=p.endAt?Date.parse(p.endAt):0;
      let rank=1,label='GUIDE LISTING • AIRTIME UNCONFIRMED';
      if(p.now || (from&&to&&from<=now&&to>now)){rank=3;label='ON NOW'}
@@ -42,6 +82,7 @@
    return results[0]||null;
  }
  window.veloraProgrammeLookup=lookup;
+ window.veloraProgrammeSearchTest={matchesProgramme,candidatePhrases};
  const original=v7LiveMatches;
  v7LiveMatches=function(q='') {
    const direct=original(q),query=norm(q);
