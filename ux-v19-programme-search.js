@@ -102,7 +102,10 @@
        if(c.epgId)state.epg[c.epgId]=list;
        state.epg[c.name]=list;
      }
-     if(response.pending||!response.updatedAt)nextAttempt=Date.now()+35*1000;
+     if(response.pending||!response.updatedAt){
+       nextAttempt=Date.now()+35*1000;
+       setTimeout(hydrateGuides,38000);
+     }
      if(document.getElementById('view-live')?.classList.contains('active')){
        window.veloraVerifiedGuide?.refresh?.();
        const q=document.getElementById('channelSearch');
@@ -110,6 +113,14 @@
      }
    }catch{nextAttempt=Date.now()+8*60000}finally{busy=false}
  }
+ // Requery immediately after the full provider catalogue becomes available.
+ const beforeSnapshot=v7ApplySnapshot;
+ v7ApplySnapshot=function(...args){
+   const result=beforeSnapshot(...args);
+   nextAttempt=0;
+   setTimeout(hydrateGuides,1500);
+   return result;
+ };
  setTimeout(hydrateGuides,3500);
  setInterval(hydrateGuides,3*60000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)hydrateGuides()});
