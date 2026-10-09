@@ -83,6 +83,36 @@
  }
  window.veloraProgrammeLookup=lookup;
  window.veloraProgrammeSearchTest={matchesProgramme,candidatePhrases};
+ let busy=false,nextAttempt=0;
+ async function hydrateGuides(){
+   if(document.hidden||busy||Date.now()<nextAttempt||!state.channels?.length)return;
+   const verified=new Set(window.veloraVerifiedChannels?.ids?.()||[]);
+   const selected=filteredChannels().filter(c=>verified.has(c.id)||
+      (verified.size<15&&Boolean(c.epgId))).slice(0,1250);
+   if(!selected.length)return;
+   busy=true;nextAttempt=Date.now()+5*60000;
+   try{
+     const response=await v7Request('/api/epg/programmes',{method:'POST',
+       body:JSON.stringify({channels:selected.map(c=>({id:c.id,name:c.name,epgId:c.epgId||''}))})});
+     const data=response.programmes||{};
+     for(const c of selected){
+       const list=data[c.id];
+       if(!Array.isArray(list)||!list.length)continue;
+       state.epg[c.id]=list;
+       if(c.epgId)state.epg[c.epgId]=list;
+       state.epg[c.name]=list;
+     }
+     if(response.pending||!response.updatedAt)nextAttempt=Date.now()+35*1000;
+     if(document.getElementById('view-live')?.classList.contains('active')){
+       window.veloraVerifiedGuide?.refresh?.();
+       const q=document.getElementById('channelSearch');
+       if(q?.value)drawChannelList(q.value);
+     }
+   }catch{nextAttempt=Date.now()+8*60000}finally{busy=false}
+ }
+ setTimeout(hydrateGuides,3500);
+ setInterval(hydrateGuides,3*60000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)hydrateGuides()});
  const original=v7LiveMatches;
  v7LiveMatches=function(q='') {
    const direct=original(q),query=norm(q);

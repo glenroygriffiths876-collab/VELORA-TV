@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
 import { URL } from 'node:url';
+import { getProgrammeGuide } from './epg-programmes.mjs';
 
 const PORT=Number(process.env.PORT||8094);
 const HOST=process.env.HOST||'0.0.0.0';
@@ -1288,6 +1289,10 @@ async function api(req,res){
 
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
   if(req.method==='GET'&&p==='/api/catalogue')return json(res,200,{ok:true,...publicSnapshot()});
+  if(req.method==='POST'&&p==='/api/epg/programmes'){
+    let body={};try{body=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid programme request'})}
+    return json(res,200,getProgrammeGuide(body.channels));
+  }
   if(req.method==='GET'&&p==='/api/provider/graph'){
     try{return json(res,200,await buildUnifiedMediaGraph(u.searchParams.get('refresh')==='1'))}catch(e){return json(res,502,{error:String(e.message||e)})}
   }
