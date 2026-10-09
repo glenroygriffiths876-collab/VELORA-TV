@@ -18,11 +18,14 @@
     const count=document.getElementById('veloraVerifiedCount');
     if(count)count.textContent=String(rows.length);
     const progress=document.getElementById('veloraVerifiedProgress');
-    if(progress)progress.style.width=Math.min(100,rows.length)+'%';
+    const target=window.veloraVerifiedChannels?.scanStatus?.().target||1000;
+    if(progress)progress.style.width=Math.min(100,(rows.length/target)*100)+'%';
     const hint=document.getElementById('veloraVerifiedScanStatus');
     const scan=window.veloraVerifiedChannels?.scanStatus?.();
-    if(hint)hint.textContent=rows.length>=100?'100-channel target reached':
-      (scan?.scanning?'Finding more playable channels…':'Only confirmed video appears here');
+    if(hint)hint.textContent=rows.length>=target?
+      target.toLocaleString()+'-channel target reached':
+      (scan?.scanning?'Finding more playable channels… • target '+target.toLocaleString():
+        'Only confirmed video appears here • target '+target.toLocaleString());
     const q=String(document.getElementById('veloraVerifiedSearch')?.value||'').trim().toLowerCase();
     const filtered=rows.filter(c=>(c.name+' '+(c.group||'')).toLowerCase().includes(q));
     const list=holder.querySelector('#veloraVerifiedRows');

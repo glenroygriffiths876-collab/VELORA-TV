@@ -1,6 +1,8 @@
 // VELORA UX V15 — TV-first Live experience with search takeover.
 (() => {
   let searchOpen=false;
+  // One startup tune per app session: TVJ is the fixed launch channel.
+  let firstLiveTunePending=true;
 
   function browseChannels(q=''){
     if(typeof v7LiveMatches==='function')return v7LiveMatches(q);
@@ -33,8 +35,12 @@
   renderLive=function(){
     const el=document.getElementById('view-live');if(!el)return;
     const available=browseChannels('');
-    const existing=state.currentChannel&&filteredChannels().find(c=>c.id===state.currentChannel.id);
-    const initial=existing||available[0]||filteredChannels()[0]||null;
+    const lineup=filteredChannels();
+    const tvj=lineup.find(c=>typeof v7IsTVJ==='function'&&v7IsTVJ(c))||
+      lineup.find(c=>String(c.name||'').trim().toLowerCase()==='tvj')||null;
+    const existing=state.currentChannel&&lineup.find(c=>c.id===state.currentChannel.id);
+    // Startup must ignore the previously watched/verified first channel.
+    const initial=(firstLiveTunePending&&tvj)||existing||available[0]||lineup[0]||null;
 
     el.innerHTML=`<div class="contentPage veloraTvFirstPage">
       <div class="veloraTvFirstWrap">
@@ -69,7 +75,18 @@
 
     drawChannelList('');
     if(initial&&document.getElementById('view-live')?.classList.contains('active')){
-      setTimeout(()=>{if(typeof window.veloraTuneWorkingChannel==='function')window.veloraTuneWorkingChannel(1,initial.id);else selectChannel(initial.id,true)},40);
+      const isStartup=firstLiveTunePending;
+      firstLiveTunePending=false;
+      setTimeout(()=>{
+        if(!document.getElementById('view-live')?.classList.contains('active'))return;
+        if(isStartup&&tvj) {
+          // Go straight to real TVJ; the tuner otherwise substitutes the
+          // first previously verified channel, silently breaking this rule.
+          const refreshed=filteredChannels().find(c=>typeof v7IsTVJ==='function'&&v7IsTVJ(c));
+          return selectChannel((refreshed||tvj).id,true);
+        }
+        selectChannel(initial.id,true);
+      },40);
     }
   };
 
