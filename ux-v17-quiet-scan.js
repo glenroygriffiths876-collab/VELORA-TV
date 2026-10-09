@@ -98,6 +98,9 @@
   function mark(c,fromBackground=false,verifiedUrl='') {
     if(!c?.id)return;
     blocked.delete(c.id);
+    // A fresh decoded video frame overrides a historical session failure.
+    // Otherwise a recovered channel would never reappear in the guide.
+    V7_SESSION_FAILED_IDS.delete(c.id);
     checked.set(c.id,Date.now());
     const localCandidates=v7LiveCandidates(c);
     if(verifiedUrl)workingUrls.set(c.id,verifiedUrl);
