@@ -18,14 +18,12 @@
     const count=document.getElementById('veloraVerifiedCount');
     if(count)count.textContent=String(rows.length);
     const progress=document.getElementById('veloraVerifiedProgress');
-    const target=window.veloraVerifiedChannels?.scanStatus?.().target||1000;
-    if(progress)progress.style.width=Math.min(100,(rows.length/target)*100)+'%';
-    const hint=document.getElementById('veloraVerifiedScanStatus');
     const scan=window.veloraVerifiedChannels?.scanStatus?.();
-    if(hint)hint.textContent=rows.length>=target?
-      target.toLocaleString()+'-channel target reached':
-      (scan?.scanning?'Finding more playable channels… • target '+target.toLocaleString():
-        'Only confirmed video appears here • target '+target.toLocaleString());
+    if(progress)progress.classList.toggle('veloraIndeterminate',!!scan?.scanning);
+    const hint=document.getElementById('veloraVerifiedScanStatus');
+    if(hint)hint.textContent=scan?.paused?'Scanning pauses when VELORA is in the background':
+      (scan?.scanning?'Scanning continuously • '+(scan.checked||0).toLocaleString()+' tested this session':
+        'Rechecking sources on cooldown • '+(scan?.checked||0).toLocaleString()+' tested');
     const q=String(document.getElementById('veloraVerifiedSearch')?.value||'').trim().toLowerCase();
     const filtered=rows.filter(c=>(c.name+' '+(c.group||'')).toLowerCase().includes(q)||
       (q&&window.veloraProgrammeLookup?.(c,q)));
@@ -60,7 +58,7 @@
       '<div><span class="veloraVerifiedEyebrow">LIVE CHANNEL GUIDE</span>'+
       '<h3>Working channels <span id="veloraVerifiedCount">0</span></h3>'+
       '<p id="veloraVerifiedScanStatus">Only confirmed video appears here</p></div>'+
-      '<button id="veloraVerifiedFindMore" type="button" title="Check additional sources">Scan more ↻</button></div>'+
+      '<button id="veloraVerifiedFindMore" type="button" title="Resume or check the next eligible sources">Check now ↻</button></div>'+
       '<div class="veloraVerifiedTrack"><div id="veloraVerifiedProgress"></div></div>'+
       '<input id="veloraVerifiedSearch" type="search" placeholder="Filter working channels…" autocomplete="off" aria-label="Filter working channels">'+
       '<div id="veloraVerifiedRows" class="veloraVerifiedRows"></div>';

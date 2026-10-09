@@ -6,12 +6,13 @@
   const FRESH_MS=4*60*60*1000;
   const RETRY_MS=15*60*1000;
   const FAIL_MS=20*60*1000;
-  const DISCOVERY_LIMIT=100;
-  const INITIAL_SCAN_ALLOWANCE=3000;
-  const MAX_SCAN_ALLOWANCE=6500;
-  const TARGET_VERIFIED=1000;
+  // No fixed channel target or per-session attempt cap. Scanning is a
+  // rotating, rate-limited process while the browser tab stays visible.
+  const DISCOVERY_BATCH=36;
+  const HEARTBEAT_MS=12000;
+  const BATCH_PAUSE_MS=900;
   const MAX_WORKERS=3;
-  const ACTIVE_VIEW_WORKERS=1;
+  const ACTIVE_VIEW_WORKERS=2;
   const PROBE_MS=3000;
   const known=new Map();
   const workingUrls=new Map(); // confirmed stream URL kept in RAM, never in storage
@@ -27,7 +28,10 @@
   let lastGoodId='';
   let pendingNext=null;
   let checkedInSession=0;
-  let scanAllowance=INITIAL_SCAN_ALLOWANCE;
+  let successfulInSession=0;
+  let cycles=0;
+  let lastAttemptAt=0;
+  let lastNewChannelAt=0;
   let scanRestartTimer=null;
 
   function fingerprint(c) {
@@ -39,7 +43,12 @@
   }
   function remember() {
     try {
-      const saved=[...known.entries()].slice(-1250).map(([id,x])=>[id,x]);
+      // Save every still-fresh verified channel, without a 1,250-item cap.
+      // Expired records are pruned first to avoid unbounded local storage use.
+      const now=Date.now();
+      const saved=[...known.entries()].filter(([id,x])=>
+        id&&x&&now-Number(x.at||0)<FRESH_MS);
+      for(const [id,x] of [...known])if(now-Number(x?.at||0)>=FRESH_MS)known.delete(id);
       localStorage.setItem(KEY,JSON.stringify(saved));
     } catch {}
   }
@@ -97,6 +106,7 @@
     const previous=known.get(c.id);
     known.set(c.id,{at:Date.now(),fingerprint:fingerprint(c),
       sourceIndex:index>=0?index:Number(previous?.sourceIndex||0)});
+    if(!previous){successfulInSession++;lastNewChannelAt=Date.now()}
     remember();
     window.veloraVerifiedGuide?.refresh?.();
     // Background discovery may only refresh listings, never tune away from
@@ -122,7 +132,9 @@
     }
   }
   function quietFindMore(urgent=false) {
-    if(urgent)scanAllowance=Math.min(MAX_SCAN_ALLOWANCE,scanAllowance+220);
+    // Scan More wakes a sleeping scanner but never removes source cooldowns
+    // or launches multiple competing video decoders.
+    if(urgent)clearTimeout(scanRestartTimer);
     if(!scanning)startDiscovery();
   }
   function activePlaying() {
@@ -241,12 +253,13 @@
   };
 
   function isCandidate(c) {
-    if(!c?.id||working(c)||blocked.get(c.id)>Date.now()||
-        V7_SESSION_FAILED_IDS.has(c.id))return false;
+    if(!c?.id||working(c)||blocked.get(c.id)>Date.now())return false;
+    // A prior selection failure cannot ban a stream forever. Its cooldown
+    // expires just like failures discovered by the background scanner.
     // Check Jamaican streams directly from the viewer's territory too.
     if(!v7LiveCandidates(c).length)return false;
     const last=checked.get(c.id)||0;
-    return Date.now()-last>RETRY_MS;
+    return !last||Date.now()-last>=RETRY_MS;
   }
   function priority(c) {
     const played=Date.parse(c.lastPlaybackSuccessAt||0)||0;
@@ -322,40 +335,54 @@
     const {rows}=catalog();
     const current=state.currentChannel?.id;
     return rows.filter(c=>c.id!==current&&isCandidate(c))
-      .map((c,i)=>({c,i,score:priority(c)}))
+      .map((c,i)=>({
+        c,i,
+        // Never-tested sources first, then previously successful/high-quality
+        // sources, without repeatedly rescanning the same small top-100 pool.
+        score:(checked.has(c.id)?0:1000000)+priority(c)
+      }))
       .sort((a,b)=>b.score-a.score||a.i-b.i)
-      .slice(0,DISCOVERY_LIMIT).map(x=>x.c);
+      .slice(0,DISCOVERY_BATCH).map(x=>x.c);
   }
   function startDiscovery() {
-    if(scanning||document.hidden||readyList().length>=TARGET_VERIFIED)return;
+    if(scanning||document.hidden)return;
     clearTimeout(scanRestartTimer);
-    const remaining=Math.max(0,scanAllowance-checkedInSession);
-    if(!remaining)return;
-    const queue=discoveryPool().slice(0,remaining);
-    if(!queue.length)return;
+    const queue=discoveryPool();
+    if(!queue.length){
+      // All currently eligible sources may be on cooldown. A separate
+      // heartbeat wakes the scanner when cooldowns expire or feeds arrive.
+      return;
+    }
     scanning=true;
     const epoch=++generation;
     let next=0;
     const worker=async()=>{
-      while(epoch===generation&&!document.hidden&&next<queue.length) {
+      while(epoch===generation&&!document.hidden&&next<queue.length){
         const c=queue[next++];
         checkedInSession++;
+        lastAttemptAt=Date.now();
         await checkCandidate(c,epoch);
       }
     };
-    // A single quiet probe competes less with the foreground TV stream.
-    const onLive=document.getElementById('view-live')?.classList.contains('active');
-    Promise.all(Array.from({length:onLive?ACTIVE_VIEW_WORKERS:MAX_WORKERS},worker)).finally(()=>{
+    const live=document.getElementById('view-live')?.classList.contains('active');
+    // Preserve decoder/network bandwidth for the selected channel.
+    const playing=activePlaying();
+    const workers=live?(playing?ACTIVE_VIEW_WORKERS:1):MAX_WORKERS;
+    Promise.all(Array.from({length:workers},worker)).finally(()=>{
       if(epoch!==generation)return;
-      scanning=false;
-      // The old scanner stopped after the first small batch. Continue with
-      // fresh candidates, but cap scans to protect mobile data and battery.
-      if(!document.hidden&&readyList().length<TARGET_VERIFIED&&
-          checkedInSession<scanAllowance&&discoveryPool().length) {
-        scanRestartTimer=setTimeout(startDiscovery,1200);
+      scanning=false;cycles++;
+      if(!document.hidden) {
+        // Unlimited rounds, using cooldowns to avoid hammering dead streams.
+        scanRestartTimer=setTimeout(startDiscovery,BATCH_PAUSE_MS);
       }
     });
   }
+  // Browsers throttle hidden tabs and installed PWAs in the background.
+  // Keep discovery alive whenever the app is foregrounded, and wake it after
+  // a cooldown even if an earlier batch had zero eligible candidates.
+  setInterval(()=>{
+    if(!document.hidden&&!scanning)startDiscovery();
+  },HEARTBEAT_MS);
   // A slow provider catalogue must also trigger scanning when it finally
   // arrives. Previously, the scanner could finish before these rows existed.
   if(typeof v7ApplySnapshot==='function') {
@@ -399,7 +426,8 @@
     count:()=>readyList().length,
     scan:()=>quietFindMore(true),
     scanStatus:()=>({verified:readyList().length,checked:checkedInSession,
-      scanning,limit:scanAllowance,target:TARGET_VERIFIED})
+      scanning,cycles,successful:successfulInSession,lastAttemptAt,
+      lastNewChannelAt,continuous:true,paused:document.hidden})
   };
   kick();
 })();
