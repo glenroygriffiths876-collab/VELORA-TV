@@ -32,3 +32,10 @@
   #view-live .veloraVerifiedTop p{font-size:10px}
   #view-live #veloraVerifiedFindMore{padding:9px;font-size:10px}
 }
+
+/* Continuous discovery has no finite target; use an indeterminate scan bar. */
+#view-live .veloraVerifiedTrack{position:relative;overflow:hidden}
+#view-live #veloraVerifiedProgress{width:0;height:100%;transition:width .25s}
+#view-live #veloraVerifiedProgress.veloraIndeterminate{width:32%!important;animation:veloraVerifiedSweep 2.6s linear infinite}
+@keyframes veloraVerifiedSweep{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
+@media(prefers-reduced-motion:reduce){#view-live #veloraVerifiedProgress.veloraIndeterminate{animation:none;width:100%!important;opacity:.6}}
