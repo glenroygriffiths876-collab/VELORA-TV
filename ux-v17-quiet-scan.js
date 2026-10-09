@@ -11,7 +11,8 @@
   const MAX_SCAN_ALLOWANCE=6500;
   const TARGET_VERIFIED=1000;
   const MAX_WORKERS=3;
-  const PROBE_MS=3900;
+  const ACTIVE_VIEW_WORKERS=1;
+  const PROBE_MS=3000;
   const known=new Map();
   const workingUrls=new Map(); // confirmed stream URL kept in RAM, never in storage
   const blocked=new Map();
@@ -98,30 +99,11 @@
       sourceIndex:index>=0?index:Number(previous?.sourceIndex||0)});
     remember();
     window.veloraVerifiedGuide?.refresh?.();
-    // A CH+ request at the end of the known list waits briefly for the next
-    // genuinely working channel, without blanking or changing the picture.
-    if(fromBackground && pendingNext &&
-       Date.now()<pendingNext.until && !pendingNext.seen.has(c.id) &&
-       state.currentChannel?.id===pendingNext.fromId && activePlaying()) {
-      const prior=state.currentChannel;
-      pendingNext=null;
-      lastGoodId=prior.id;
-      selectChannel(c.id,true);
-      return;
-    }
-    if(document.getElementById('view-live')?.classList.contains('active')) {
+    // Background discovery may only refresh listings, never tune away from
+    // the explicitly selected channel, even after a timeout or stream failure.
+    if(document.getElementById('view-live')?.classList.contains('active')){
       const input=document.getElementById('channelSearch');
       if(!input?.value)try{drawChannelList('')}catch{}
-      // A background scan must not interrupt active television. Recover only
-      // if the on-screen channel has already been confirmed unavailable.
-      if(fromBackground && state.currentChannel?.id!==c.id &&
-          (!state.currentChannel || blocked.has(state.currentChannel.id) ||
-           V7_SESSION_FAILED_IDS.has(state.currentChannel.id))) {
-        setTimeout(()=>{
-          if(!activePlaying() && state.currentChannel?.id!==c.id &&
-             !document.getElementById('channelSearch')?.value) selectChannel(c.id,true);
-        },200);
-      }
     }
   }
   function fail(c) {
@@ -193,10 +175,6 @@
       // Never wrap at the end of the VERIFIED lineup: three channels is not
       // a licence to loop TVJ -> NBC -> Fox -> TVJ forever.
       quietFindMore(true);
-      if(step>0&&onScreen?.id&&activePlaying()) {
-        pendingNext={fromId:onScreen.id,until:Date.now()+3900,
-          seen:new Set(verified.map(c=>c.id))};
-      }
       message(countLabel()+' currently playable. Staying on '+
         String(onScreen?.name||'this channel')+' while finding more.');
       return false;
@@ -221,14 +199,7 @@
       autoFailover=false;
       return;
     }
-    if(final===true) {
-      fail(c);
-      if(state.currentChannel?.id===c?.id &&
-         document.getElementById('view-live')?.classList.contains('active')) {
-        clearTimeout(failoverTimer);
-        failoverTimer=setTimeout(()=>advanceAfterFailure(c),100);
-      }
-    }
+    if(final===true)fail(c); // Keep selected channel on screen for retry.
   };
 
   function advanceAfterFailure(c) {
@@ -372,7 +343,9 @@
         await checkCandidate(c,epoch);
       }
     };
-    Promise.all(Array.from({length:MAX_WORKERS},worker)).finally(()=>{
+    // A single quiet probe competes less with the foreground TV stream.
+    const onLive=document.getElementById('view-live')?.classList.contains('active');
+    Promise.all(Array.from({length:onLive?ACTIVE_VIEW_WORKERS:MAX_WORKERS},worker)).finally(()=>{
       if(epoch!==generation)return;
       scanning=false;
       // The old scanner stopped after the first small batch. Continue with

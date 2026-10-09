@@ -476,7 +476,7 @@ function v7ShowLiveStatus(c,title,message,busy=false){
     <div class="channelMonogram big">${esc(c.short||'TV')}</div>
     <span class="officialPill">${v7IsPublicDirectoryItem(c)?'VELORA LIVE':'LIVE SOURCE'}</span>
     <h2>${esc(title||c.name)}</h2><p>${esc(message||'Finding live source…')}</p>
-    ${busy?'<div class="v7MiniSpinner"></div>':'<button class="ghost v7ChooseAnother" id="v7ChooseAnotherChannel">Choose another channel</button>'}
+    ${busy?'<div class="v7MiniSpinner"></div>':'<button class="primary" type="button" id="veloraRetrySelectedChannel">Retry this channel ↻</button><button class="ghost v7ChooseAnother" id="v7ChooseAnotherChannel">Choose another channel</button>'}
   </div>`;
 }
 const V7_SEARCH_ATTEMPTS=new Map();
@@ -495,7 +495,7 @@ function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
 
   const msg=v7ChannelNameKey(c).includes('cvm')
     ? 'CVM is not available right now. Please choose another channel when you are ready.'
-    : 'This channel is not available right now. Please choose another channel when you are ready.';
+    : 'This stream is temporarily unavailable. Retry this channel or choose another.';
   v7ShowLiveStatus(c,c.name,msg,false);
 }
 const V7_NATIVE_ATTEMPTS=new Set();
@@ -710,6 +710,12 @@ if(typeof v6Fail==='function'){
 
 
 document.addEventListener('click',e=>{
+  if(e.target.id==='veloraRetrySelectedChannel'){
+    e.preventDefault();e.stopImmediatePropagation();
+    const c=state.currentChannel;
+    if(c){V7_SESSION_FAILED_IDS.delete(c.id);selectChannel(c.id,true)}
+    return;
+  }
   if(e.target.id==='v7ChooseAnotherChannel'){
     const list=document.getElementById('channelList');
     const pane=document.querySelector('#view-live .channelPane');
