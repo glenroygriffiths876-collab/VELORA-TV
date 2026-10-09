@@ -6,12 +6,14 @@
   const FRESH_MS=90*60*1000;
   const RETRY_MS=15*60*1000;
   const FAIL_MS=20*60*1000;
-  const DISCOVERY_LIMIT=50;
-  const INITIAL_SCAN_ALLOWANCE=120;
-  const MAX_SCAN_ALLOWANCE=360;
-  const MAX_WORKERS=2;
-  const PROBE_MS=6500;
+  const DISCOVERY_LIMIT=100;
+  const INITIAL_SCAN_ALLOWANCE=1000;
+  const MAX_SCAN_ALLOWANCE=2500;
+  const TARGET_VERIFIED=100;
+  const MAX_WORKERS=3;
+  const PROBE_MS=3900;
   const known=new Map();
+  const workingUrls=new Map(); // confirmed stream URL kept in RAM, never in storage
   const blocked=new Map();
   const checked=new Map();
   let order=[];
@@ -83,12 +85,19 @@
     const n=readyList().length;
     return n+' video-verified channel'+(n===1?'':'s');
   }
-  function mark(c,fromBackground=false) {
+  function mark(c,fromBackground=false,verifiedUrl='') {
     if(!c?.id)return;
     blocked.delete(c.id);
     checked.set(c.id,Date.now());
-    known.set(c.id,{at:Date.now(),fingerprint:fingerprint(c)});
+    const localCandidates=v7LiveCandidates(c);
+    if(verifiedUrl)workingUrls.set(c.id,verifiedUrl);
+    const chosen=workingUrls.get(c.id)||verifiedUrl||'';
+    const index=localCandidates.indexOf(chosen);
+    const previous=known.get(c.id);
+    known.set(c.id,{at:Date.now(),fingerprint:fingerprint(c),
+      sourceIndex:index>=0?index:Number(previous?.sourceIndex||0)});
     remember();
+    window.veloraVerifiedGuide?.refresh?.();
     // A CH+ request at the end of the known list waits briefly for the next
     // genuinely working channel, without blanking or changing the picture.
     if(fromBackground && pendingNext &&
@@ -118,9 +127,11 @@
   function fail(c) {
     if(!c?.id)return;
     known.delete(c.id);
+    workingUrls.delete(c.id);
     checked.set(c.id,Date.now());
     blocked.set(c.id,Date.now()+FAIL_MS);
     remember();
+    window.veloraVerifiedGuide?.refresh?.();
   }
   function message(s) {
     const now=Date.now();
@@ -129,7 +140,7 @@
     }
   }
   function quietFindMore(urgent=false) {
-    if(urgent)scanAllowance=Math.min(MAX_SCAN_ALLOWANCE,scanAllowance+40);
+    if(urgent)scanAllowance=Math.min(MAX_SCAN_ALLOWANCE,scanAllowance+220);
     if(!scanning)startDiscovery();
   }
   function activePlaying() {
@@ -183,11 +194,11 @@
       // a licence to loop TVJ -> NBC -> Fox -> TVJ forever.
       quietFindMore(true);
       if(step>0&&onScreen?.id&&activePlaying()) {
-        pendingNext={fromId:onScreen.id,until:Date.now()+8500,
+        pendingNext={fromId:onScreen.id,until:Date.now()+3900,
           seen:new Set(verified.map(c=>c.id))};
       }
-      message('Only '+countLabel()+' found so far. Staying on '+
-        String(onScreen?.name||'this channel')+' while checking more.');
+      message(countLabel()+' currently playable. Staying on '+
+        String(onScreen?.name||'this channel')+' while finding more.');
       return false;
     }
     const next=verified[nextIndex];
@@ -206,7 +217,7 @@
   v7ReportPlayback=function(c,url,ok,reason='',final=false) {
     reportBefore(c,url,ok,reason,final);
     if(ok===true) {
-      mark(c);
+      mark(c,false,url);
       autoFailover=false;
       return;
     }
@@ -236,6 +247,17 @@
     selectChannel(choice.id,true);
     setTimeout(()=>{autoFailover=false},1000);
   }
+
+  // The tuned source is reused directly by V7; do not run a fresh multi-source
+  // backend resolve on every remote press. Old successes are rechecked when used.
+  window.veloraFastLiveUrls=function(c) {
+    if(!working(c))return [];
+    const urls=v7LiveCandidates(c);
+    const remembered=known.get(c.id);
+    const best=workingUrls.get(c.id)||
+      urls[Math.min(urls.length-1,Math.max(0,Number(remembered?.sourceIndex||0)))];
+    return best?[best]:[];
+  };
 
   // V7's original unavailable overlay remains for explicit Search selections.
   // On a failed remote selection, the report handler above switches to a known
@@ -316,14 +338,13 @@
     if(epoch!==generation||document.hidden||!isCandidate(c))return;
     checked.set(c.id,Date.now());
     const urls=v7LiveCandidates(c).slice(0,2);
-    let ok=false;
+    let winningUrl='';
     for(const url of urls) {
       if(epoch!==generation||document.hidden)break;
-      ok=await probeVideo(c,url);
-      if(ok)break;
+      if(await probeVideo(c,url)){winningUrl=url;break}
     }
     if(epoch!==generation)return;
-    if(ok)mark(c,true);
+    if(winningUrl)mark(c,true,winningUrl);
     else blocked.set(c.id,Date.now()+FAIL_MS);
   }
   function discoveryPool() {
@@ -335,7 +356,7 @@
       .slice(0,DISCOVERY_LIMIT).map(x=>x.c);
   }
   function startDiscovery() {
-    if(scanning||document.hidden)return;
+    if(scanning||document.hidden||readyList().length>=TARGET_VERIFIED)return;
     clearTimeout(scanRestartTimer);
     const remaining=Math.max(0,scanAllowance-checkedInSession);
     if(!remaining)return;
@@ -356,7 +377,8 @@
       scanning=false;
       // The old scanner stopped after the first small batch. Continue with
       // fresh candidates, but cap scans to protect mobile data and battery.
-      if(!document.hidden&&checkedInSession<scanAllowance&&discoveryPool().length) {
+      if(!document.hidden&&readyList().length<TARGET_VERIFIED&&
+          checkedInSession<scanAllowance&&discoveryPool().length) {
         scanRestartTimer=setTimeout(startDiscovery,1200);
       }
     });
@@ -404,7 +426,7 @@
     count:()=>readyList().length,
     scan:()=>quietFindMore(true),
     scanStatus:()=>({verified:readyList().length,checked:checkedInSession,
-      scanning,limit:scanAllowance})
+      scanning,limit:scanAllowance,target:TARGET_VERIFIED})
   };
   kick();
 })();
