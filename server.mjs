@@ -376,7 +376,14 @@ const PUBLIC_BOOTSTRAP_FEEDS=[
   {id:'public_caribbean',name:'Caribbean Public TV Directory',playlistUrl:'https://iptv-org.github.io/iptv/regions/carib.m3u',territory:'WORLD',region:'Caribbean',priority:55,refreshMinutes:1440},
   {id:'public_movies',name:'Public Movie Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/movies.m3u',territory:'WORLD',priority:35,refreshMinutes:1440},
   {id:'public_series',name:'Public Series Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/series.m3u',territory:'WORLD',priority:35,refreshMinutes:1440},
-  {id:'public_sports',name:'Public Sports Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/sports.m3u',territory:'WORLD',priority:35,refreshMinutes:1440}
+  {id:'public_sports',name:'Public Sports Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/sports.m3u',territory:'WORLD',priority:35,refreshMinutes:1440},
+  // Additional public directories widen discovery; channels still require
+  // decoded-video confirmation on the viewer device before entering the guide.
+  {id:'public_news',name:'Public News Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/news.m3u',territory:'WORLD',priority:50,refreshMinutes:1440},
+  {id:'public_entertainment',name:'Public Entertainment Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/entertainment.m3u',territory:'WORLD',priority:48,refreshMinutes:1440},
+  {id:'public_documentary',name:'Public Documentary Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/documentary.m3u',territory:'WORLD',priority:42,refreshMinutes:1440},
+  {id:'public_music',name:'Public Music Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/music.m3u',territory:'WORLD',priority:42,refreshMinutes:1440},
+  {id:'public_kids',name:'Public Kids Channels',playlistUrl:'https://iptv-org.github.io/iptv/categories/kids.m3u',territory:'WORLD',priority:40,refreshMinutes:1440}
 ];
 
 async function bootstrapPublicFeeds(){
@@ -1062,7 +1069,10 @@ function parseM3U(textBody,provider){
       const name=(line.split(',').slice(1).join(',')||attr['tvg-name']||'Channel').trim();
       meta={name,epgId:attr['tvg-id']||'',group:attr['group-title']||'Other',logo:attr['tvg-logo']||''};
     }else if(line&&!line.startsWith('#')&&meta){
-      const id=uid('m3u');
+      // Stable identifiers survive daily playlist refreshes and preserve
+      // video-confirmation caches across app sessions.
+      const stableKey=provider.id+'|'+String(meta.epgId||meta.name).trim().toLowerCase();
+      const id='m3u_'+crypto.createHash('sha256').update(stableKey).digest('hex').slice(0,20);
       const publicRelay=!!provider.publicDirectory;
       out.push({id,num:String(out.length+1),name:meta.name,epgId:meta.epgId,group:provider.adult?'18+ Adult':meta.group,adult:!!provider.adult,logo:meta.logo,now:'Live',url:publicRelay?('/api/public/channel/'+id):line,upstreamUrl:publicRelay?line:'',sourceId:provider.id,sourceName:provider.name,priority:Number(provider.priority||50),territory:provider.territory||'WORLD',sources:[{providerId:provider.id,providerName:provider.name,kind:'m3u',url:publicRelay?relayPath(line):line,upstreamUrl:publicRelay?line:'',priority:Number(provider.priority||50),territory:provider.territory||'WORLD',health:'unknown',lastChecked:null}]});
       meta=null;
@@ -1465,7 +1475,7 @@ setInterval(async()=>{
   try{
     const now=Date.now();
     for(const p of db.providers){
-      if(p.enabled===false)continue;
+      if(p.enabled===false||p.type==='direct-public')continue;
       const interval=Math.max(5,Number(p.refreshMinutes||DEFAULT_REFRESH_MINUTES))*60000;
       const last=Date.parse(p.lastSync||0)||0;
       if(now-last>=interval){try{await syncProvider(p)}catch(e){console.error('Scheduled sync failed for',p.name,e.message)}}
