@@ -3,13 +3,13 @@
 (() => {
   'use strict';
   const KEY='velora_verified_video_v17';
-  const FRESH_MS=90*60*1000;
+  const FRESH_MS=4*60*60*1000;
   const RETRY_MS=15*60*1000;
   const FAIL_MS=20*60*1000;
   const DISCOVERY_LIMIT=100;
-  const INITIAL_SCAN_ALLOWANCE=1000;
-  const MAX_SCAN_ALLOWANCE=2500;
-  const TARGET_VERIFIED=100;
+  const INITIAL_SCAN_ALLOWANCE=3000;
+  const MAX_SCAN_ALLOWANCE=6500;
+  const TARGET_VERIFIED=1000;
   const MAX_WORKERS=3;
   const PROBE_MS=3900;
   const known=new Map();
@@ -38,7 +38,7 @@
   }
   function remember() {
     try {
-      const saved=[...known.entries()].slice(-200).map(([id,x])=>[id,x]);
+      const saved=[...known.entries()].slice(-1250).map(([id,x])=>[id,x]);
       localStorage.setItem(KEY,JSON.stringify(saved));
     } catch {}
   }
