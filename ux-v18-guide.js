@@ -21,7 +21,9 @@
     const scan=window.veloraVerifiedChannels?.scanStatus?.();
     if(progress)progress.classList.toggle('veloraIndeterminate',!!scan?.scanning);
     const hint=document.getElementById('veloraVerifiedScanStatus');
-    if(hint)hint.textContent=scan?.paused?'Scanning pauses when VELORA is in the background':
+    if(hint)hint.textContent=scan?.offline?'Offline • saved channels are kept; checks resume when connected':
+      scan?.recovering?'Sources are not passing video checks • retrying shortly; your channel stays selected':
+      scan?.paused?'Scanning pauses when VELORA is in the background':
       (scan?.scanning?'Scanning continuously • '+(scan.checked||0).toLocaleString()+' tested this session':
         'Rechecking sources on cooldown • '+(scan?.checked||0).toLocaleString()+' tested');
     const q=String(document.getElementById('veloraVerifiedSearch')?.value||'').trim().toLowerCase();
