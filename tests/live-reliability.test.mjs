@@ -66,6 +66,8 @@ test('repeated failures enter visible recovery and retain the selected channel',
  const replies=Object.fromEntries(rows.map(c=>[c.url,{error:true,delay:10}]));
  const h=harness(rows,replies);await h.tick(3000);assert.equal(h.api.scanStatus().recovering,true);
  assert.ok(h.api.scanStatus().checked<30);assert.deepEqual(h.selections,[]);
+ const firstRound=h.api.scanStatus().checked;await h.tick(70000);
+ assert.ok(h.api.scanStatus().checked>=firstRound+12,'recovery resumes a batch, not one failed probe per minute');
 });
 test('a background recheck timeout retains a previously verified channel',async()=>{
  const c={id:'saved',url:'saved.m3u8'};const h=harness([c]);h.context.v7ReportPlayback(c,c.url,true);
