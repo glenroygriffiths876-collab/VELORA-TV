@@ -1,4 +1,7 @@
 import http from 'node:http';
+import { gzip } from 'node:zlib';
+import { promisify } from 'node:util';
+const gzipAsync=promisify(gzip);
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -625,6 +628,19 @@ function sourceMeta(provider,item,kind){
 function publicProvider(p){
   const {secret,...rest}=p;
   return rest;
+}
+async function sendCatalogue(req,res,snapshot){
+  const body=JSON.stringify({ok:true,...snapshot});
+  const headers={'content-type':'application/json; charset=utf-8','cache-control':'no-store',
+    'access-control-allow-origin':'*','vary':'Accept-Encoding'};
+  const acceptsGzip=String(req.headers['accept-encoding']||'').split(',').some(value=>{
+    const [name,...params]=value.trim().split(';');
+    return name.toLowerCase()==='gzip'&&!params.some(p=>/^\s*q=0(?:\.0*)?\s*$/.test(p));
+  });
+  if(acceptsGzip){
+    const compressed=await gzipAsync(body);
+    res.writeHead(200,{...headers,'content-encoding':'gzip'});res.end(compressed);
+  }else{res.writeHead(200,headers);res.end(body)}
 }
 function publicSnapshot(){
   return {
@@ -1290,7 +1306,7 @@ async function api(req,res){
   }
 
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
-  if(req.method==='GET'&&p==='/api/catalogue')return json(res,200,{ok:true,...publicSnapshot()});
+  if(req.method==='GET'&&p==='/api/catalogue')return sendCatalogue(req,res,publicSnapshot());
   if(req.method==='POST'&&p==='/api/epg/programmes'){
     let body={};try{body=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid programme request'})}
     return json(res,200,getProgrammeGuide(body.channels));

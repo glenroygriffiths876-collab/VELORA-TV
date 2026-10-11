@@ -20,9 +20,10 @@ function harness(channels, responses={}) {
     static isSupported(){return true} static Events={ERROR:'error',MANIFEST_PARSED:'manifest'};
     constructor(){this.events={}} on(n,f){this.events[n]=f} attachMedia(v){this.v=v}
     loadSource(url){attempts.push(url);const r=responses[url];if(!r)return;
+      if(r.manifestDelay!=null)this.manifestTimer=later(()=>this.events.manifest?.(),r.manifestDelay);
       this.timer=later(()=>{if(r.error){this.events.error?.(null,{fatal:true});return}
         Object.assign(this.v,{videoWidth:640,videoHeight:360,readyState:3,currentTime:1,paused:false});this.v.frame?.();},r.delay||5000)}
-    destroy(){timers.delete(this.timer)}
+    destroy(){timers.delete(this.timer);timers.delete(this.manifestTimer)}
   }
   class Clock extends Date {static now(){return now}}
   const context={Date:Clock,Map,Set,Promise,Math,JSON,Number,String,Array,Hls,navigator:{onLine:true},
@@ -93,4 +94,15 @@ test('relay survives completed request and aborts only unfinished response disco
   vm.createContext(c);vm.runInContext(fn,c);const pending=c.relayPublicUrl(req,res,'https://example.com/a.m3u8');
   await started;req.emit('close');assert.equal(signal.aborted,false);if(disconnect)res.emit('close');await pending;
  }
+});
+
+// Performance guards: distinguish progress from an unresponsive source.
+test('responsive manifest keeps its full decode window beyond the fast first pass',async()=>{
+ const h=harness([{id:'slowdecode',url:'slowdecode.m3u8'}],{'slowdecode.m3u8':{manifestDelay:500,delay:12000}});
+ await h.tick(14500);assert.equal(h.api.count(),1);
+});
+test('nonresponsive source yields in six seconds but can succeed on a longer retry',async()=>{
+ const h=harness([{id:'slowserver',url:'slowserver.m3u8'}],{'slowserver.m3u8':{manifestDelay:8000,delay:10000}});
+ await h.tick(8000);assert.equal(h.api.scanStatus().checked,1);assert.equal(h.api.count(),0);
+ await h.tick(90000);assert.equal(h.api.count(),1);
 });
