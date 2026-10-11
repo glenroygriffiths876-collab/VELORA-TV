@@ -35,7 +35,7 @@ test('closed captions can appear after stream starts, be selected, and switched 
   api.attach(v);
   assert.equal(api.available().length,0);
   api.toggle();
-  assert.match(nodes.menu.children.at(-1).textContent,/Checking/);
+  assert.ok(nodes.menu.children.some(x=>/Checking/.test(String(x.textContent))));
   v.textTracks.push({kind:'captions',label:'English CC',language:'en',mode:'disabled'});
   v.fire('addtrack');
   assert.equal(api.available().length,1);
@@ -112,6 +112,13 @@ test('English preference never fabricates missing tracks or captions',()=>{
   api.attach(video(),hls);
   assert.equal(hls.audioTrack,0);
   assert.equal(api.available().length,0);
+  api.toggle();
+  // Metadata is asynchronous; only mark a source captionless once it loads.
+  api.refresh();
+  assert.ok(nodes.menu.children.some(x=>/Checking/.test(String(x.textContent))));
+  const label=video();
+  api.attach(label,hls);
+  label.fire('loadedmetadata');
   api.toggle();
   assert.ok(nodes.menu.children.some(x=>String(x.textContent).includes('No subtitles supplied')));
 });
