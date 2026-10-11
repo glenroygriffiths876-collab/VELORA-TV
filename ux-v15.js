@@ -28,12 +28,14 @@
       <button type="button" data-v15-control="vol-down" aria-label="Volume down"><b>−</b><span>VOL</span></button>
       <button type="button" data-v15-control="mute" aria-label="Mute"><b>◉</b><span>MUTE</span></button>
       <button type="button" data-v15-control="vol-up" aria-label="Volume up"><b>＋</b><span>VOL</span></button>
+      <div class="veloraCcAnchor"><button type="button" data-v15-control="cc" aria-label="Subtitles and closed captions" aria-controls="veloraCcMenu" aria-expanded="false" aria-pressed="false"><b>CC</b><span>SUBS</span></button><div id="veloraCcMenu" class="veloraCcMenu" role="group" aria-label="Subtitle languages" hidden></div></div>
       <button type="button" data-v15-control="fullscreen" aria-label="Full screen"><b>⛶</b><span>FULL</span></button>
     </div>`;
   }
 
   renderLive=function(){
     const el=document.getElementById('view-live');if(!el)return;
+    window.veloraCaptions?.reset?.();
     const available=browseChannels('');
     const lineup=filteredChannels();
     const tvj=lineup.find(c=>typeof v7IsTVJ==='function'&&v7IsTVJ(c))||
@@ -192,6 +194,7 @@
       else if(a==='vol-up')volume(.1);
       else if(a==='mute')mute();
       else if(a==='fullscreen')fullscreen();
+      else if(a==='cc')window.veloraCaptions?.toggle?.();
     }
     if(searchOpen&&e.target.closest?.('[data-channel]')){
       setTimeout(()=>closeSearch(false),0);

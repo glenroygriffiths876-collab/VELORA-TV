@@ -28,7 +28,7 @@ export function createCompatibleFeed({getSource,validateSource,spawnProcess=spaw
       const prefix='segment-'+randomBytes(6).toString('hex')+'-';
       const args=['-hide_banner','-loglevel','error','-nostdin','-rw_timeout','10000000',
         '-protocol_whitelist','http,https,tcp,tls,crypto','-i',source,
-        '-map','0:v:0','-map','0:a:0?','-c:v','libx264','-threads','2','-preset','veryfast','-tune','zerolatency',
+        '-map','0:v:0','-map','0:a:0?','-c:v','libx264','-a53cc','1','-threads','2','-preset','veryfast','-tune','zerolatency',
         '-vf','scale=854:480:force_original_aspect_ratio=decrease:force_divisible_by=2','-pix_fmt','yuv420p',
         '-profile:v','main','-level','3.1','-r','30','-g','60','-keyint_min','60','-sc_threshold','0',
         '-b:v','1200k','-maxrate','1400k','-bufsize','2400k','-c:a','aac','-b:a','96k','-ac','2','-ar','48000',

@@ -520,6 +520,7 @@ async function v7ResolveCandidates(c,signal){
   return local;
 }
 function v7ResetInline(){
+  window.veloraCaptions?.reset?.();
   window.veloraCancelLiveAttempt?.();
   if(state.hls){try{state.hls.destroy()}catch{}state.hls=null}
   const v=document.getElementById('inlineLive');
@@ -726,9 +727,11 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
       });
       state.hls.loadSource(url);
       state.hls.attachMedia(v);
+      window.veloraCaptions?.attach?.(v,state.hls);
       state.hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(autoplay)v7StartPlayback(v).catch(()=>{})});
       state.hls.on(Hls.Events.ERROR,(_,data)=>{if(data?.fatal)fail()});
     }else{
+      window.veloraCaptions?.attach?.(v,null);
       v.src=url;v.load();
     }
   }catch{fail()}

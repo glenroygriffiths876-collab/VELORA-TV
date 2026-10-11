@@ -18,6 +18,7 @@ test('A&E viewers share one H264/AAC encoder; arbitrary filenames cannot start i
   const a=response(),b=response();await Promise.all([feed.serve({},a,'index.m3u8'),feed.serve({},b,'index.m3u8')]);
   assert.equal(count,1);assert.equal(a.status,200);assert.equal(b.status,200);
   assert.equal(args[args.indexOf('-c:v')+1],'libx264');assert.equal(args[args.indexOf('-c:a')+1],'aac');
+  assert.equal(args[args.indexOf('-a53cc')+1],'1'); // Preserve in-band A/53 captions when supplied.
   assert.equal(args[args.indexOf('-threads')+1],'2');assert.ok(!args[args.indexOf('-protocol_whitelist')+1].includes('file'));
   await new Promise(r=>setTimeout(r,1050));assert.ok(killed>0);
  }finally{feed.close();await fs.rm(root,{recursive:true,force:true})}

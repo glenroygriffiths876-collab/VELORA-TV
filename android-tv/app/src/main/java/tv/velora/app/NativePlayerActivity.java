@@ -43,6 +43,7 @@ public class NativePlayerActivity extends Activity {
         playerView = new PlayerView(this);
         playerView.setBackgroundColor(Color.BLACK);
         playerView.setUseController(true);
+        playerView.setShowSubtitleButton(true); // Show language/CC choices when the source supplies tracks.
         playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING);
         playerView.setKeepScreenOn(true);
         root.addView(playerView, new FrameLayout.LayoutParams(
