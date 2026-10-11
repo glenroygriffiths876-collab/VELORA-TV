@@ -1,0 +1,17 @@
+/* Source-provided subtitles: legible on both a phone and a TV. */
+#view-live .veloraTvControls{grid-template-columns:repeat(8,minmax(0,1fr))}
+#view-live .veloraCcAnchor{position:relative;min-width:0;z-index:7}
+#view-live .veloraCcAnchor>button{height:100%;width:100%}
+#view-live .veloraCcMenu{position:absolute;right:0;bottom:calc(100% + 9px);width:min(292px,calc(100vw - 20px));max-height:min(55vh,320px);overflow:auto;background:#101622;color:#f4f7ff;border:1px solid #65779280;border-radius:15px;box-shadow:0 15px 42px #000c;padding:12px;display:flex;flex-direction:column;gap:6px}
+#view-live .veloraCcMenu[hidden]{display:none!important}
+#view-live .veloraCcMenu strong{font-size:14px;margin-bottom:4px}
+#view-live .veloraCcMenu p{margin:8px 4px;color:#b6c0d2;font-size:12px;line-height:1.4}
+#view-live .veloraTvControls .veloraCcChoice{display:block;text-align:left;min-height:40px;width:100%;padding:9px 12px;font-size:13px;font-weight:600;border-radius:9px}
+#view-live .veloraTvControls .veloraCcChoice.selected{border-color:#a5bfff;background:#293a56}
+#view-live .veloraTvControls .veloraCcAnchor>button.active{background:#293a56;border-color:#a5bfff}
+#view-live video::cue,#mainPlayer::cue{font-family:Arial,sans-serif;font-size:clamp(16px,2.3vw,30px);color:white;background-color:rgba(0,0,0,.76);text-shadow:0 1px 4px black}
+@media(max-width:760px){#view-live .veloraTvControls{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:420px){#view-live .veloraTvControls{grid-template-columns:repeat(8,minmax(0,1fr))}}
+.tvMode #view-live .veloraCcMenu{width:min(390px,80vw)}
+.tvMode #view-live .veloraTvControls .veloraCcChoice{font-size:18px;min-height:52px}
+.tvMode #view-live .veloraCcMenu strong{font-size:19px}
