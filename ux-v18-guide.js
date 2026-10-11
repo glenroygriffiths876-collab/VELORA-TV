@@ -27,7 +27,7 @@
       (scan?.scanning?'Scanning continuously • '+(scan.checked||0).toLocaleString()+' tested this session':
         'Rechecking sources on cooldown • '+(scan?.checked||0).toLocaleString()+' tested');
     const q=String(document.getElementById('veloraVerifiedSearch')?.value||'').trim().toLowerCase();
-    const filtered=rows.filter(c=>(c.name+' '+(c.group||'')).toLowerCase().includes(q)||
+    const filtered=rows.filter(c=>v7SearchText(c.name+' '+(c.group||'')).includes(v7SearchText(q))||
       (q&&window.veloraProgrammeLookup?.(c,q)));
     const list=holder.querySelector('#veloraVerifiedRows');
     if(!list)return;

@@ -117,8 +117,9 @@
  const beforeSnapshot=v7ApplySnapshot;
  v7ApplySnapshot=function(...args){
    const result=beforeSnapshot(...args);
-   nextAttempt=0;
-   setTimeout(hydrateGuides,1500);
+   // Shared hints refresh every 30 seconds; the regular EPG timer handles
+   // those updates without repeatedly fetching programme data during playback.
+   if(!args[1]?.background){nextAttempt=0;setTimeout(hydrateGuides,1500)}
    return result;
  };
  setTimeout(hydrateGuides,3500);
@@ -146,11 +147,13 @@
    const listEl=document.getElementById('channelList');
    if(!listEl)return;
    const all=v7LiveMatches(q),items=all.slice(0,250);
+   const verified=new Set(window.veloraVerifiedChannels?.ids?.()||[]);
    const html=items.map(c=>{
      const p=lookup(c,q);
      const desc=p?
        '<small class="veloraProgrammeResult">'+e(p.label)+' • '+e(p.title)+'</small>':
-       '<small>'+e(c.group||'Live TV')+'</small>';
+       '<small>'+e(c.group||'Live TV')+(q&&!verified.has(c.id)?
+         ' • '+(v7ChannelQuarantined(c)?'Source unavailable · tap to retry':'Not verified yet · tap to try'):'')+'</small>';
      return '<button class="channelRow '+(state.currentChannel?.id===c.id?'active':'')+
        '" data-channel="'+e(c.id)+'" type="button">'+
        '<span class="channelLogo textLogo">'+e(c.short||'TV')+'</span>'+
