@@ -119,3 +119,9 @@ test('shortlist arriving mid-batch is used after current attempt, not after thir
  h.context.veloraDiscoveryHints=new Map([['late',h.context.Date.now()]]);
  await h.tick(7000);assert.ok(h.api.ids().includes('late'));assert.ok(h.attempts.indexOf('late.m3u8')<=2);
 });
+
+test('cold compatibility conversion is allowed to produce video before being rejected',async()=>{
+ const url='/api/public/compatible/ae/index.m3u8';
+ const h=harness([{id:'ae',url}],{[url]:{delay:18000}});await h.tick(20000);
+ assert.ok(h.api.ids().includes('ae'));assert.equal(h.api.scanStatus().outcomes.timeout,0);
+});

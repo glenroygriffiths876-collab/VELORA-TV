@@ -154,3 +154,18 @@ test('server quarantine does not erase a channel from the searchable catalogue',
  vm.createContext(ctx);vm.runInContext(client.slice(start,end),ctx);
  assert.equal(ctx.filteredChannels()[0].id,'syfy');
 });
+
+test('merged A&E channel uses its retained ID instead of a discarded imported playback route',()=>{
+ const ctx={v7MediaUrl:u=>u};vm.createContext(ctx);vm.runInContext(between(client,'function v7LiveCandidates','async function v7ResolveCandidates'),ctx);
+ for(const prefix of ['', 'https://velora.example']){
+  const urls=ctx.v7LiveCandidates({id:'retained',url:prefix+'/api/public/channel/discarded',upstreamUrl:'https://source.example/ae.m3u8',
+   sources:[{url:'/api/public/relay?token=alternative',upstreamUrl:'https://source.example/ae.m3u8'}]});
+  assert.deepEqual(Array.from(urls),[prefix+'/api/public/channel/retained']);
+ }
+});
+
+test('English A&E prioritizes browser conversion without relabeling regional editions',()=>{
+ const ctx={v7MediaUrl:u=>u};vm.createContext(ctx);vm.runInContext(between(client,'function v7LiveCandidates','async function v7ResolveCandidates'),ctx);
+ assert.equal(ctx.v7LiveCandidates({name:'A&E (720p)',url:'raw'})[0],'/api/public/compatible/ae/index.m3u8');
+ assert.deepEqual(Array.from(ctx.v7LiveCandidates({name:'A&E Latin America (1080p)',url:'regional'})),['regional']);
+});

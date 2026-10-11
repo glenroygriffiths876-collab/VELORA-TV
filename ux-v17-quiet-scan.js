@@ -311,8 +311,9 @@
       activeProbes.add(cancel);
       const decoded=()=>v.videoWidth>0&&v.videoHeight>0&&!v.paused&&v.readyState>=2&&v.currentTime>.08;
       const poll=setInterval(()=>{if(decoded())finish('video')},250);
-      const timer=setTimeout(()=>finish('timeout'),ms);
-      let noProgressTimer=deferredSources.has(url)?null:setTimeout(()=>{
+      const converting=url.includes('/api/public/compatible/');
+      const timer=setTimeout(()=>finish('timeout'),converting?25000:ms);
+      let noProgressTimer=(converting||deferredSources.has(url))?null:setTimeout(()=>{
         deferredSources.add(url);finish('timeout');
       },FIRST_RESPONSE_MS);
       const progress=()=>{clearTimeout(noProgressTimer)};

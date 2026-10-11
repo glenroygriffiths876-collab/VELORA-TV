@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {createCompatibleFeed} from './compatible-feed.mjs';
 import { gzip } from 'node:zlib';
 import { promisify } from 'node:util';
 const gzipAsync=promisify(gzip);
@@ -1264,10 +1265,18 @@ function serveStatic(req,res){
   fs.createReadStream(file).pipe(res);
 }
 
+const aeCompatibleFeed=createCompatibleFeed({
+  getSource:()=>db.channels.find(c=>/^a\s*&\s*e(?:\s*\([^)]*\))?$/i.test(c.name||''))?.upstreamUrl||'',
+  validateSource:assertSafeUrl
+});
+process.once('SIGTERM',()=>{aeCompatibleFeed.close();server.close(()=>process.exit(0))});
+
 async function api(req,res){
   if(req.method==='OPTIONS'){res.writeHead(204,{'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,DELETE,OPTIONS','access-control-allow-headers':'content-type, authorization, x-velora-device'});return res.end()}
   const u=new URL(req.url,'http://localhost');
   const p=u.pathname;
+  const compatible=p.match(/^\/api\/public\/compatible\/ae\/([^/]+)$/);
+  if(req.method==='GET'&&compatible)return aeCompatibleFeed.serve(req,res,compatible[1]);
 
   if(req.method==='POST'&&p==='/api/auth/register'){
     let b={};try{b=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid request'})}
