@@ -135,3 +135,22 @@ test('feed refresh retains health for identical upstreams and discards it when U
  assert.equal(ctx.db.channels[0].sources[0].health,'up');assert.equal(ctx.db.channels[0].sources[0].lastChecked,'recent');
  assert.equal(ctx.db.channels[1].sources[0].health,'unknown');assert.equal(ctx.db.channels[1].sources[0].lastChecked,undefined);
 });
+
+test('Sci-Fi search accepts spacing, punctuation and SYFY while preserving full catalogue search',()=>{
+ const rows=[{id:'syfy',name:'SYFY (720p)'},{id:'scifi',name:'SciFi (720p)'},{id:'pluto',name:'Pluto TV Sci-Fi'},{id:'science',name:'Science TV'}];
+ const ctx={state:{currentFilter:'All'},filteredChannels:()=>rows,v7DefaultBrowseChannels:()=>[]};vm.createContext(ctx);
+ vm.runInContext(between(client,'function v7SearchText','drawChannelList=function'),ctx);
+ for(const q of ['sci fi','sci-fi','SCIFI','syfy'])assert.deepEqual(Array.from(ctx.v7LiveMatches(q),c=>c.id),['syfy','scifi','pluto']);
+ assert.equal(ctx.v7LiveMatches('').length,0,'empty browse still uses verified list');
+ assert.deepEqual(Array.from(ctx.v7LiveMatches('science'),c=>c.id),['science']);
+});
+
+test('server quarantine does not erase a channel from the searchable catalogue',()=>{
+ const start=client.indexOf('filteredChannels=function');
+ const end=client.indexOf('\n};',start)+3;
+ const ctx={state:{channels:[{id:'syfy',name:'SYFY',availability:'down',lastAvailabilityCheck:new Date().toISOString()}]},V5_OFFICIAL_CHANNELS:[],
+ v7ChannelNameKey:c=>c.name, v7IsPublicDirectoryItem:()=>true,rightsActive:()=>false,
+ v7IsTVJ:()=>false,localStorage:{getItem:()=>null},window:{},V7_SESSION_FAILED_IDS:new Set()};
+ vm.createContext(ctx);vm.runInContext(client.slice(start,end),ctx);
+ assert.equal(ctx.filteredChannels()[0].id,'syfy');
+});

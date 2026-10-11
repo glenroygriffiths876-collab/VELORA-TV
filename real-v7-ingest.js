@@ -271,12 +271,16 @@ function v7DefaultBrowseChannels(){
   }
   return filteredChannels().filter(v7ChannelRecentlyHealthy);
 }
+function v7SearchText(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/[^a-z0-9]+/g,' ').replace(/\b(?:sci\s*fi|syfy)\b/g,'scifi').replace(/\s+/g,' ').trim();
+}
 function v7LiveMatches(q=''){
-  const grp=state.currentFilter||'All',needle=String(q||'').trim().toLowerCase();
+  const grp=state.currentFilter||'All',needle=v7SearchText(q);
   // Searching is intentional discovery, so search can reveal the Jamaican
   // channels hidden from the normal browse list.
   const base=needle?filteredChannels():v7DefaultBrowseChannels();
-  return base.filter(c=>(grp==='All'||c.group===grp)&&(!needle||(c.name+' '+(c.group||'')+' '+(c.now||'')+' '+(c.sourceName||'')).toLowerCase().includes(needle)));
+  return base.filter(c=>(grp==='All'||c.group===grp)&&(!needle||v7SearchText(c.name+' '+(c.group||'')+' '+(c.now||'')+' '+(c.sourceName||'')).includes(needle)));
 }
 drawChannelList=function(q=''){
   const el=document.getElementById('channelList');if(!el)return;
@@ -360,7 +364,8 @@ function v7ChannelQuarantined(x){
 filteredChannels=function(){
   const officialByKey=new Map(V5_OFFICIAL_CHANNELS.map(x=>[v7ChannelNameKey(x),x]));
   const bulk=state.channels
-    .filter(x=>!v7ChannelQuarantined(x))
+    // Keep unavailable entries searchable and manually retryable. The default
+    // guide and remote independently require device-confirmed video.
     .filter(x=>v7IsPublicDirectoryItem(x)||rightsActive(x))
     .map(x=>{
       const off=officialByKey.get(v7ChannelNameKey(x));
