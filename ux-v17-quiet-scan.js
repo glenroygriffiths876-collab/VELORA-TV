@@ -15,7 +15,10 @@
   const MAX_WORKERS=2;
   const ACTIVE_VIEW_WORKERS=1;
   const PROBE_MS=15000;
+  const FIRST_RESPONSE_MS=6000;
+  const deferredSources=new Set();
   const RECOVERY_MS=60000;
+  const RECOVERY_PAUSE_MS=5000;
   const activeProbes=new Set();
   const sourceOffsets=new Map();
   let consecutiveFailures=0,recoveryUntil=0;
@@ -295,7 +298,7 @@
         if(finished)return;
         finished=true;
         activeProbes.delete(cancel);
-        clearTimeout(timer);clearInterval(poll);
+        clearTimeout(timer);clearTimeout(noProgressTimer);clearInterval(poll);
         try{if(frameId!==null)v.cancelVideoFrameCallback?.(frameId)}catch{}
         try{hls?.destroy()}catch{}
         try{v.pause();v.removeAttribute('src');v.load()}catch{}
@@ -307,8 +310,13 @@
       const decoded=()=>v.videoWidth>0&&v.videoHeight>0&&!v.paused&&v.readyState>=2&&v.currentTime>.08;
       const poll=setInterval(()=>{if(decoded())finish('video')},250);
       const timer=setTimeout(()=>finish('timeout'),ms);
+      let noProgressTimer=deferredSources.has(url)?null:setTimeout(()=>{
+        deferredSources.add(url);finish('timeout');
+      },FIRST_RESPONSE_MS);
+      const progress=()=>{clearTimeout(noProgressTimer)};
+      v.onloadedmetadata=progress;
       v.onerror=()=>finish('error');
-      v.onloadeddata=()=>{v.play().catch(()=>{})};
+      v.onloadeddata=()=>{progress();v.play().catch(()=>{})};
       v.oncanplay=()=>{v.play().catch(()=>{})};
       if(typeof v.requestVideoFrameCallback==='function') {
         try {
@@ -324,7 +332,7 @@
           hls.on(Hls.Events.ERROR,(_,detail)=>{if(detail?.fatal)finish('error')});
           hls.attachMedia(v);
           hls.loadSource(url);
-          hls.on(Hls.Events.MANIFEST_PARSED,()=>{v.play().catch(()=>{})});
+          hls.on(Hls.Events.MANIFEST_PARSED,()=>{progress();v.play().catch(()=>{})});
         } else {
           v.src=url;v.load();v.play().catch(()=>{});
         }
@@ -344,7 +352,7 @@
       if(epoch!==generation||document.hidden)break;
       result=await probeVideo(c,url);
       outcomes[result]++;
-      if(result==='video'){winningUrl=url;break}
+      if(result==='video'){deferredSources.delete(url);winningUrl=url;break}
       if(result==='cancelled')break;
     }
     if(epoch!==generation||document.hidden||result==='cancelled'){
@@ -358,7 +366,7 @@
       // A background timeout is inconclusive; retain previous verified entries.
       if(!known.has(c.id))blocked.set(c.id,Date.now()+(result==='timeout'?RECOVERY_MS:FAIL_MS));
       if(result==='timeout')checked.set(c.id,Date.now()-RETRY_MS+RECOVERY_MS);
-      if(consecutiveFailures>=12)recoveryUntil=Date.now()+RECOVERY_MS;
+      if(consecutiveFailures>=12)recoveryUntil=Date.now()+RECOVERY_PAUSE_MS;
     }
     window.veloraVerifiedGuide?.refresh?.();
   }

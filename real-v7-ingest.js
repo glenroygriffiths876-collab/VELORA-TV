@@ -61,7 +61,12 @@ function v7ApplySnapshot(d){
     url:v7MediaUrl(x.url),
     sources:(x.sources||[]).map(src=>({...src,url:v7MediaUrl(src.url),sourceId:src.sourceId||src.providerId,sourceName:src.sourceName||src.providerName}))
   }));
-  persist();renderAll();
+  persist();
+  // A background catalogue refresh must not destroy/restart the current video.
+  if(document.getElementById('inlineLive')&&document.getElementById('view-live')?.classList.contains('active')){
+    drawChannelList(document.getElementById('channelSearch')?.value||'');
+    window.veloraVerifiedGuide?.refresh?.();
+  }else renderAll();
 }
 async function v7LoadSnapshot(showToast=true){
   try{
@@ -428,20 +433,24 @@ document.addEventListener('click',e=>{
 
 
 function v7LiveCandidates(c){
-  const urls=[];
-  const add=u=>{u=v7MediaUrl(u);if(u&&!urls.includes(u))urls.push(u)};
-  // Jamaica-first: when the backend marks a channel with clientUrls, try those
-  // directly from the viewer's network before the Railway relay.
+  const urls=[],seen=new Set();
+  const add=(value,upstream='')=>{
+    const u=v7MediaUrl(value);if(!u)return;
+    // Channel and signed relay routes can point to the exact same upstream.
+    // Direct-from-device and relay routes remain distinct (CORS/territory).
+    const key=upstream&&u.includes('/api/public/')?'relay:'+upstream:u;
+    if(!seen.has(key)&&!urls.includes(u)){seen.add(key);urls.push(u)}
+  };
   for(const u of (c.clientUrls||[]))add(u);
-  add(c.url);
-  for(const src of (c.sources||[]))add(src.url);
+  add(c.url,c.upstreamUrl);
+  for(const src of (c.sources||[]))add(src.url,src.upstreamUrl);
   return urls;
 }
-async function v7ResolveCandidates(c){
+async function v7ResolveCandidates(c,signal){
   const local=v7LiveCandidates(c);
   if(v7IsPublicDirectoryItem(c)){
     try{
-      const d=await v7Request('/api/channel/'+encodeURIComponent(c.id)+'/resolve',{headers:{}});
+      const d=await v7Request('/api/channel/'+encodeURIComponent(c.id)+'/resolve',{headers:{},signal});
       const probed=(d.urls||[]).map(v7MediaUrl).filter(Boolean);
       // Direct Jamaica feeds may work from the viewer's network even when the
       // backend probe is geo-blocked, so preserve client-direct order there.
@@ -458,6 +467,7 @@ async function v7ResolveCandidates(c){
   return local;
 }
 function v7ResetInline(){
+  window.veloraCancelLiveAttempt?.();
   if(state.hls){try{state.hls.destroy()}catch{}state.hls=null}
   const v=document.getElementById('inlineLive');
   if(v){
@@ -537,12 +547,27 @@ async function v7StartPlayback(v){
     }catch{return false}
   }
 }
+// Source discovery is a fallback, never a prerequisite for the first picture.
+async function v7RecoverLiveSources(c,attempted,autoplay,token){
+  if(token!==V7_SELECTION_TOKEN)return;
+  if(V7_SEARCH_ATTEMPTS.has(token))return v7KeepSearching(c,token);
+  V7_SEARCH_ATTEMPTS.set(token,true);
+  const ac=new AbortController();
+  const timer=setTimeout(()=>ac.abort(),8000);
+  v7ShowLiveStatus(c,c.name,'Checking another source for this channel…',true);
+  try{
+    const urls=(await v7ResolveCandidates(c,ac.signal)).filter(u=>!attempted.includes(u));
+    if(token!==V7_SELECTION_TOKEN)return;
+    if(urls.length)return v7PlayLiveDirect(c,urls,autoplay,0,token);
+    v7KeepSearching(c,token);
+  }finally{clearTimeout(timer)}
+}
 function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN){
   if(token!==V7_SELECTION_TOKEN)return;
   const url=urls[index];
   if(!url){
     if(v7TryNativePlayer(c,urls,token))return;
-    return v7KeepSearching(c,token);
+    return v7RecoverLiveSources(c,urls,autoplay,token);
   }
 
   v7ResetInline();
@@ -554,11 +579,14 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
   let timeout=null;
   let frameTimer=null;
   let verifyStarted=false;
+  let videoFrameId=null;
 
   const cleanupTimers=()=>{
     clearTimeout(timeout);
     clearTimeout(frameTimer);
+    if(videoFrameId!==null)try{v.cancelVideoFrameCallback?.(videoFrameId)}catch{}
   };
+  window.veloraCancelLiveAttempt=()=>{settled=true;cleanupTimers()};
   const confirmVideo=()=>{
     if(settled||token!==V7_SELECTION_TOKEN||verifyStarted)return;
     verifyStarted=true;
@@ -586,7 +614,8 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
     if(typeof v.requestVideoFrameCallback==='function'){
       let frameSeen=false;
       try{
-        v.requestVideoFrameCallback(()=>{
+        videoFrameId=v.requestVideoFrameCallback(()=>{
+          if(settled||token!==V7_SELECTION_TOKEN)return;
           frameSeen=true;
           if((v.videoWidth||0)>0&&(v.videoHeight||0)>0){
             settled=true;cleanupTimers();
@@ -613,19 +642,19 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
     if(state.hls){try{state.hls.destroy()}catch{}state.hls=null}
     try{v.pause();v.removeAttribute('src');v.load()}catch{}
     v7ReportPlayback(c,url,false,'no-compatible-video');
-    if(index+1<urls.length&&!fastChoice){
+    if(index+1<urls.length){
       setTimeout(()=>v7PlayLiveDirect(c,urls,autoplay,index+1,token),100);
     }else if(v7TryNativePlayer(c,urls,token)){
       return;
     }else{
-      v7KeepSearching(c,token);
+      v7RecoverLiveSources(c,urls,autoplay,token);
     }
   };
 
-  // Already video-verified remote choices must fail quickly rather than
-  // leave the user staring at a loading screen for ten seconds per source.
-  const fastChoice=window.veloraFastLiveUrls?.(c)?.length>0;
-  timeout=setTimeout(fail,fastChoice?3800:10000);
+  // Begin immediately; a saved success must not get a shorter decode deadline.
+  timeout=setTimeout(fail,15000);
+  // Keep the video renderable beneath the loading overlay for frame callbacks.
+  v.classList.remove('hidden');
   v.onerror=fail;
   v.onloadedmetadata=confirmVideo;
   v.onloadeddata=confirmVideo;
@@ -636,7 +665,8 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
       state.hls=new Hls({
         enableWorker:true,
         lowLatencyMode:true,
-        maxBufferLength:30,
+        maxBufferLength:12,
+        startLevel:0,
         manifestLoadingTimeOut:7000,
         levelLoadingTimeOut:7000,
         fragLoadingTimeOut:7000
@@ -671,9 +701,9 @@ selectChannel=async function(id,autoplay=true){
   // expensive server resolve/probe round trip on every CH+ / CH− press.
   const ready=window.veloraFastLiveUrls?.(c);
   if(ready?.length)return v7PlayLiveDirect(c,ready,autoplay,0,token);
-  const urls=await v7ResolveCandidates(c);
-  if(token!==V7_SELECTION_TOKEN)return;
+  const urls=v7LiveCandidates(c);
   if(urls.length)return v7PlayLiveDirect(c,urls,autoplay,0,token);
+  if(v7IsPublicDirectoryItem(c))return v7RecoverLiveSources(c,[],autoplay,token);
 
   if(c.embedUrl){
     const yt=v6YoutubeFromEmbed(c.embedUrl);
