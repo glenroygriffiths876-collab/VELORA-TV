@@ -89,3 +89,38 @@ test('first catalogue upgrades the selected placeholder only, preserving channel
  ctx.window=ctx;vm.createContext(ctx);vm.runInContext(between(client,'function v7ApplySnapshot','async function v7LoadSnapshot'),ctx);
  ctx.v7ApplySnapshot({channels:[{id:'bbc',name:'BBC',url:'bbc.m3u8'},{id:'direct-tvj',name:'TVJ',url:'tvj.m3u8'}]});assert.deepEqual(tuned,['direct-tvj']);
 });
+
+test('shared discovery excludes stale/down hints and puts fresh source first without declaring video',()=>{
+ const server=fs.readFileSync('server.mjs','utf8'),now=Date.now();
+ const fresh={url:'good',health:'up',lastChecked:new Date(now).toISOString(),latencyMs:100};
+ const ctx={db:{channels:[{id:'jm_tvj_direct'},{id:'good',sources:[{url:'bad',health:'down'},fresh]},
+ {id:'stale',sources:[{...fresh,lastChecked:new Date(now-21*60000).toISOString()}]},
+ {id:'bad',sources:[{health:'down'}]}]}};
+ vm.createContext(ctx);vm.runInContext(between(server,'function discoverySnapshot','function computeStats'),ctx);
+ const d=ctx.discoverySnapshot(now);assert.deepEqual(Array.from(d.channels,c=>c.id),['jm_tvj_direct','good']);
+ assert.equal(d.channels[1].sources[0].url,'good');assert.equal(d.kind,'transport-hints');
+ assert.equal(d.channels[1].videoVerified,undefined);
+});
+test('shortlist merges without dropping search catalogue or changing current selection and ignores logout',()=>{
+ const selected={id:'chosen'},ctx={state:{user:{id:1},currentChannel:selected,channels:[{id:'existing'}],catalog:[{id:'movie'}],providers:[]},
+ document:{hidden:false},setInterval(){},v7ApplySnapshot(d){Object.assign(ctx.state,d)}};
+ ctx.window=ctx;vm.createContext(ctx);
+ vm.runInContext(between(client,'let V7_DISCOVERY_PENDING','let V7_HYDRATE_PENDING'),ctx);
+ ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}]});
+ assert.deepEqual(Array.from(ctx.state.channels,c=>c.id),['existing','new']);assert.equal(ctx.state.currentChannel,selected);
+ assert.equal(ctx.state.catalog[0].id,'movie');assert.ok(ctx.veloraDiscoveryHints.has('new'));
+ ctx.state.user=null;ctx.v7ApplyDiscovery({channels:[{id:'after-logout'}]});assert.equal(ctx.state.channels.length,2);
+});
+test('public startup reads avoid auth preflight while private requests retain authorization',async()=>{
+ const requests=[];const ctx={localStorage:{getItem:()=> 'token'},v7Api:x=>x,fetch:async(url,opts)=>{
+ requests.push({url,...opts});return {ok:true,headers:{get:()=> 'application/json'},json:async()=>({ok:true})}}};
+ vm.createContext(ctx);vm.runInContext(between(client,'async function v7Request','function v7StatusBadge'),ctx);
+ await ctx.v7Request('/api/catalogue');await ctx.v7Request('/api/discovery');await ctx.v7Request('/api/private');
+ assert.equal(requests[0].headers.authorization,undefined);assert.equal(requests[1].headers['content-type'],undefined);
+ assert.equal(requests[2].headers.authorization,'Bearer token');
+});
+test('fresh successful alternate is tried before dead primary without dropping direct device URLs',()=>{
+ const ctx={v7MediaUrl:u=>u};vm.createContext(ctx);vm.runInContext(between(client,'function v7LiveCandidates','async function v7ResolveCandidates'),ctx);
+ const urls=ctx.v7LiveCandidates({clientUrls:['direct'],url:'dead',sources:[{url:'good',health:'up',lastChecked:new Date().toISOString()}]});
+ assert.deepEqual(Array.from(urls),['direct','good','dead']);
+});

@@ -106,3 +106,9 @@ test('nonresponsive source yields in six seconds but can succeed on a longer ret
  await h.tick(8000);assert.equal(h.api.scanStatus().checked,1);assert.equal(h.api.count(),0);
  await h.tick(90000);assert.equal(h.api.count(),1);
 });
+
+test('shared responsive shortlist outranks untested dead sources but still requires decoded frames',async()=>{
+ const h=harness([{id:'dead',url:'dead.m3u8'},{id:'hint',url:'hint.m3u8'}],{'hint.m3u8':{delay:1000}});
+ h.context.veloraDiscoveryHints=new Map([['hint',h.context.Date.now()]]);
+ await h.tick(3000);assert.equal(h.attempts[0],'hint.m3u8');assert.deepEqual([...h.api.ids()],['hint']);assert.deepEqual(h.selections,[]);
+});

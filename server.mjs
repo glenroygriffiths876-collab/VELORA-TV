@@ -651,6 +651,21 @@ function publicSnapshot(){
     stats:computeStats()
   };
 }
+// Shared server hints are transport checks, never device-video verification.
+function discoverySnapshot(now=Date.now()){
+  const fresh=s=>s.health==='up'&&now-(Date.parse(s.lastChecked)||0)<20*60000;
+  const candidates=db.channels.filter(c=>c.id==='jm_tvj_direct'||(c.sources||[]).some(fresh));
+  candidates.sort((a,b)=>{
+    if(a.id==='jm_tvj_direct')return -1;if(b.id==='jm_tvj_direct')return 1;
+    return (Date.parse(b.lastPlaybackSuccessAt)||0)-(Date.parse(a.lastPlaybackSuccessAt)||0)||
+      Math.min(...(a.sources||[]).filter(fresh).map(s=>Number(s.latencyMs)||10000))-
+      Math.min(...(b.sources||[]).filter(fresh).map(s=>Number(s.latencyMs)||10000));
+  });
+  return {updatedAt:db.updatedAt,checkedAt:new Date(now).toISOString(),kind:'transport-hints',
+    totalCandidates:candidates.length,channels:candidates.slice(0,256).map(c=>({...c,
+      sources:[...(c.sources||[])].sort((a,b)=>Number(fresh(b))-Number(fresh(a)))}))};
+}
+
 function computeStats(){
   const sourceAssets=db.catalog.reduce((n,x)=>n+(x.sources?.length||1),0)+db.channels.reduce((n,x)=>n+(x.sources?.length||1),0);
   const down=Object.values(db.health||{}).filter(x=>x.status==='down').length;
@@ -1164,9 +1179,10 @@ async function healthScan({limit=250,offset=0}={}){
   for(let i=0;i<count;i++)targets.push(allTargets[(offset+i)%total]);
   const checked=await pooled(targets,HEALTH_CONCURRENCY,async t=>{
     const started=Date.now();
-    const h=await checkUrl(t.url);
+    const ok=await probeStream(t.url,4000);
+    const h={status:ok?'up':'down',latencyMs:Date.now()-started,checkedAt:new Date().toISOString()};
     db.health[t.key]=h;
-    t.source.health=h.status;t.source.lastChecked=h.checkedAt;
+    t.source.health=h.status;t.source.lastChecked=h.checkedAt;t.source.latencyMs=h.latencyMs;
     recordReliability(t.url,{ok:h.status==='up',reason:h.error||('HTTP '+(h.httpStatus||'')),latencyMs:h.latencyMs??(Date.now()-started),kind:'probe'});
     return {...t,...h};
   });
@@ -1306,6 +1322,7 @@ async function api(req,res){
   }
 
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
+  if(req.method==='GET'&&p==='/api/discovery')return sendCatalogue(req,res,discoverySnapshot());
   if(req.method==='GET'&&p==='/api/catalogue')return sendCatalogue(req,res,publicSnapshot());
   if(req.method==='POST'&&p==='/api/epg/programmes'){
     let body={};try{body=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid programme request'})}
@@ -1490,8 +1507,18 @@ const server=http.createServer(async(req,res)=>{
 });
 server.listen(PORT,HOST,()=>{console.log('Velora Ingest V7 listening on http://'+HOST+':'+PORT);setTimeout(async()=>{try{await bootstrapPublicFeeds();const graph=await buildUnifiedMediaGraph(true);console.log('Unified media graph ready:',JSON.stringify(graph.counts));await warmReportedProblemChannels()}catch(e){console.error('Startup graph warm failed',e)}},750)});
 
+// Independent from provider imports and slow source recovery. Every batch yields
+// and shares its results across viewers; only twelve upstream checks run at once.
 let reliabilitySweepCursor=0;
-let lastReliabilitySweep=0;
+async function runDiscoverySweep(){
+  try{
+    const sweep=await healthScan({limit:128,offset:reliabilitySweepCursor});
+    reliabilitySweepCursor=sweep.nextOffset||0;
+    console.log('Shared discovery:',sweep.up,'responsive of',sweep.checked,'checked');
+  }catch(e){console.error('Shared discovery failed',e.message)}
+  finally{setTimeout(runDiscoverySweep,5000).unref()}
+}
+setTimeout(runDiscoverySweep,2000).unref();
 let schedulerBusy=false;
 setInterval(async()=>{
   if(schedulerBusy)return;schedulerBusy=true;
@@ -1502,15 +1529,6 @@ setInterval(async()=>{
       const interval=Math.max(5,Number(p.refreshMinutes||DEFAULT_REFRESH_MINUTES))*60000;
       const last=Date.parse(p.lastSync||0)||0;
       if(now-last>=interval){try{await syncProvider(p)}catch(e){console.error('Scheduled sync failed for',p.name,e.message)}}
-    }
-    if(now-lastReliabilitySweep>=5*60000){
-      lastReliabilitySweep=now;
-      try{
-        const sweep=await healthScan({limit:200,offset:reliabilitySweepCursor});
-        reliabilitySweepCursor=sweep.nextOffset||0;
-        const retried=await recheckUnavailableChannels(24);
-        console.log('Reliability sweep:',sweep.up+' up',sweep.down+' down','of',sweep.checked,'checked; retried',retried,'quarantined channels');
-      }catch(e){console.error('Reliability sweep failed',e.message)}
     }
   }finally{schedulerBusy=false}
 },60000).unref();
