@@ -35,7 +35,7 @@ test('closed captions can appear after stream starts, be selected, and switched 
   api.attach(v);
   assert.equal(api.available().length,0);
   api.toggle();
-  assert.match(nodes.menu.children.at(-1).textContent,/Checking/);
+  assert.ok(nodes.menu.children.some(x=>/Checking/.test(String(x.textContent))));
   v.textTracks.push({kind:'captions',label:'English CC',language:'en',mode:'disabled'});
   v.fire('addtrack');
   assert.equal(api.available().length,1);
@@ -74,6 +74,51 @@ test('live controller and A&E pipeline are wired to browser and native captions'
   assert.match(v15,/data-v15-control="cc"/);
   assert.match(v15,/veloraCaptions\?\.toggle/);
   assert.match(v7,/veloraCaptions\?\.attach/);
-  assert.match(html,/velora-captions\.js\?v=1/);
-  assert.match(sw,/velora-captions\.css\?v=1/);
+  assert.match(html,/velora-captions\.js\?v=2/);
+  assert.match(sw,/velora-captions\.css\?v=2/);
+});
+
+test('guide identifies the French SciFi edition, without guessing all channel audio languages',()=>{
+  const {api,nodes}=harness();
+  assert.equal(api.edition({epgId:'SciFi.fr@HD'}),'French edition');
+  assert.equal(api.edition({epgId:'SYFY.us@East'}),'');
+  api.setChannel({name:'SciFi (720p)',epgId:'SciFi.fr@HD'});
+  api.toggle();
+  assert.ok(nodes.menu.children.some(x=>String(x.textContent).includes('French edition')));
+  assert.ok(nodes.menu.children.some(x=>String(x.textContent).includes('no selectable alternative audio')));
+});
+test('HLS prefers offered English audio and respects manual language selection',()=>{
+  const {api}=harness();
+  const v=video();
+  const hls={
+    audioTracks:[{name:'Français',lang:'fr'},{name:'English',lang:'en'}],
+    audioTrack:0, subtitleTracks:[],
+    on(){},off(){}
+  };
+  api.attach(v,hls);
+  assert.equal(hls.audioTrack,1);
+  assert.equal(api.selectAudio(api.audioOptions()[0],true),true);
+  assert.equal(hls.audioTrack,0);
+  api.refresh();
+  assert.equal(hls.audioTrack,0);
+  api.reset();
+  const next={audioTracks:[{name:'Deutsch',lang:'de'},{name:'Français',lang:'fr'}],audioTrack:0,subtitleTracks:[],on(){},off(){}};
+  api.attach(video(),next);
+  assert.equal(next.audioTrack,1); // Explicitly preferred French survives channel changes.
+});
+test('English preference never fabricates missing tracks or captions',()=>{
+  const {api,nodes}=harness();
+  const hls={audioTracks:[{name:'Français',lang:'fr'}],audioTrack:0,subtitleTracks:[],on(){},off(){}};
+  api.attach(video(),hls);
+  assert.equal(hls.audioTrack,0);
+  assert.equal(api.available().length,0);
+  api.toggle();
+  // Metadata is asynchronous; only mark a source captionless once it loads.
+  api.refresh();
+  assert.ok(nodes.menu.children.some(x=>/Checking/.test(String(x.textContent))));
+  const label=video();
+  api.attach(label,hls);
+  label.fire('loadedmetadata');
+  api.toggle();
+  assert.ok(nodes.menu.children.some(x=>String(x.textContent).includes('No subtitles supplied')));
 });
