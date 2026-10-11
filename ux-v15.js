@@ -54,7 +54,7 @@
           </div>
           <div class="veloraTvNow">
             <div class="veloraTvNowText"><span>NOW PLAYING</span><h2 id="nowChannel">${initial?esc(initial.name):'Choose a channel'}</h2><p id="nowProgram">${initial?esc(initial.now||initial.group||'Live TV'):'Tap Search channels below.'}</p></div>
-            <div class="veloraOnAir"><i></i> LIVE</div>
+            <div class="veloraNowSignals"><span id="veloraSourceEdition" class="veloraEditionTag" hidden></span><div class="veloraOnAir"><i></i> LIVE</div></div>
             <button id="openProviderFallback" class="hidden" hidden></button>
             <button id="openFullLive" class="hidden" hidden></button>
           </div>
@@ -75,6 +75,7 @@
       </div>
     </div>`;
 
+    window.veloraCaptions?.setChannel?.(initial);
     drawChannelList('');
     if(initial&&document.getElementById('view-live')?.classList.contains('active')){
       const isStartup=firstLiveTunePending;

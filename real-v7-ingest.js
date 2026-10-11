@@ -743,6 +743,7 @@ selectChannel=async function(id,autoplay=true){
   V7_NATIVE_ATTEMPTS.clear();
   clearTimeout(V7_RETRY_TIMER);
   state.currentChannel=c;
+  window.veloraCaptions?.setChannel?.(c);
   drawChannelList(document.getElementById('channelSearch')?.value||'');
 
   const t=document.getElementById('nowChannel'),p=document.getElementById('nowProgram'),fallback=document.getElementById('openProviderFallback');
