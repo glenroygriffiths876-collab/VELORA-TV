@@ -815,6 +815,21 @@ function normalizeXtreamSeries(provider,x,i){
 }
 
 function mergeChannels(provider,items){
+  // Preserve measured health only for the exact same provider and upstream.
+  // Playlist imports must not erase the shared discovery cache on each restart.
+  const previous=new Map(db.channels.map(c=>[channelKey(c),c]));
+  for(const item of items){
+    const old=previous.get(channelKey(item));if(!old)continue;
+    for(const src of item.sources||[]){
+      const prior=(old.sources||[]).find(s=>s.providerId===src.providerId&&
+        (s.upstreamUrl||s.url||s.streamId)===(src.upstreamUrl||src.url||src.streamId));
+      if(prior)for(const key of ['health','lastChecked','latencyMs'])if(prior[key]!=null)src[key]=prior[key];
+    }
+    if((old.upstreamUrl||old.url)===(item.upstreamUrl||item.url)){
+      for(const key of ['availability','lastAvailabilityCheck','lastAvailableAt','lastUnavailableAt','lastPlaybackSuccessAt','lastPlaybackFailureAt'])
+        if(old[key]!=null)item[key]=old[key];
+    }
+  }
   const foreign=db.channels.filter(x=>!(x.sources||[]).some(s=>s.providerId===provider.id));
   const map=new Map(foreign.map(x=>[channelKey(x),x]));
   for(const item of items){

@@ -124,3 +124,14 @@ test('fresh successful alternate is tried before dead primary without dropping d
  const urls=ctx.v7LiveCandidates({clientUrls:['direct'],url:'dead',sources:[{url:'good',health:'up',lastChecked:new Date().toISOString()}]});
  assert.deepEqual(Array.from(urls),['direct','good','dead']);
 });
+
+test('feed refresh retains health for identical upstreams and discards it when URL changes',()=>{
+ const server=fs.readFileSync('server.mjs','utf8');
+ const ctx={db:{channels:[{id:'a',name:'A',url:'same',sources:[{providerId:'p',url:'same',health:'up',lastChecked:'recent'}]},
+ {id:'b',name:'B',url:'old',sources:[{providerId:'p',url:'old',health:'up',lastChecked:'recent'}]}]},channelKey:c=>c.name,scoreSource:()=>0};
+ vm.createContext(ctx);vm.runInContext(between(server,'function mergeChannels','function mergeCatalog'),ctx);
+ ctx.mergeChannels({id:'p'},[{id:'a',name:'A',url:'same',sources:[{providerId:'p',url:'same',health:'unknown'}]},
+ {id:'b',name:'B',url:'new',sources:[{providerId:'p',url:'new',health:'unknown'}]}]);
+ assert.equal(ctx.db.channels[0].sources[0].health,'up');assert.equal(ctx.db.channels[0].sources[0].lastChecked,'recent');
+ assert.equal(ctx.db.channels[1].sources[0].health,'unknown');assert.equal(ctx.db.channels[1].sources[0].lastChecked,undefined);
+});
