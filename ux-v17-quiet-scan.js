@@ -400,8 +400,12 @@
     const epoch=++generation;
     let next=0;
     const worker=async()=>{
-      while(epoch===generation&&!document.hidden&&navigator.onLine!==false&&Date.now()>=recoveryUntil&&next<queue.length){
-        const c=queue[next++];
+      while(epoch===generation&&!document.hidden&&navigator.onLine!==false&&Date.now()>=recoveryUntil&&next<DISCOVERY_BATCH){
+        // Re-rank between attempts: a shortlist arriving during a batch must
+        // not wait behind the rest of an obsolete queue of dead sources.
+        const c=discoveryPool()[0];
+        if(!c)break;
+        next++;
         lastAttemptAt=Date.now();
         await checkCandidate(c,epoch);
       }

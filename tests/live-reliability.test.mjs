@@ -112,3 +112,10 @@ test('shared responsive shortlist outranks untested dead sources but still requi
  h.context.veloraDiscoveryHints=new Map([['hint',h.context.Date.now()]]);
  await h.tick(3000);assert.equal(h.attempts[0],'hint.m3u8');assert.deepEqual([...h.api.ids()],['hint']);assert.deepEqual(h.selections,[]);
 });
+
+test('shortlist arriving mid-batch is used after current attempt, not after thirty-six dead channels',async()=>{
+ const rows=Array.from({length:40},(_,i)=>({id:'dead'+i,url:'dead'+i+'.m3u8'}));rows.push({id:'late',url:'late.m3u8'});
+ const h=harness(rows,{'late.m3u8':{delay:1000}});await h.tick(2000);
+ h.context.veloraDiscoveryHints=new Map([['late',h.context.Date.now()]]);
+ await h.tick(7000);assert.ok(h.api.ids().includes('late'));assert.ok(h.attempts.indexOf('late.m3u8')<=2);
+});
