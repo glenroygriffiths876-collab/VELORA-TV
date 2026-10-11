@@ -485,11 +485,17 @@ function v7LiveCandidates(c){
     const key=upstream&&u.includes('/api/public/')?'relay:'+upstream:u;
     if(!seen.has(key)&&!urls.includes(u)){seen.add(key);urls.push(u)}
   };
+  // The English A&E feed uses MPEG-2; the shared compatibility route emits
+  // H.264/AAC. Keep regional editions distinct.
+  if(/^a\s*&\s*e(?:\s*\([^)]*\))?$/i.test(c.name||''))add(v7MediaUrl('/api/public/compatible/ae/index.m3u8'));
   for(const u of (c.clientUrls||[]))add(u);
   // A fresh successful server source precedes stale alternatives, but direct
   // territory-specific device URLs above retain first choice.
   for(const src of (c.sources||[]))if(src.health==='up'&&Date.now()-(Date.parse(src.lastChecked)||0)<20*60000)add(src.url,src.upstreamUrl);
-  add(c.url,c.upstreamUrl);
+  // Imports can retain an existing channel ID while replacing its playlist
+  // record. Always address that retained ID, not a discarded imported ID.
+  const channelUrl=c.id?String(c.url||'').replace(/(\/api\/public\/channel\/)[^/?#]+/,'$1'+encodeURIComponent(c.id)):c.url;
+  add(channelUrl,c.upstreamUrl);
   for(const src of (c.sources||[]))add(src.url,src.upstreamUrl);
   return urls;
 }
@@ -699,7 +705,7 @@ function v7PlayLiveDirect(c,urls,autoplay=true,index=0,token=V7_SELECTION_TOKEN)
   };
 
   // Begin immediately; a saved success must not get a shorter decode deadline.
-  timeout=setTimeout(fail,15000);
+  timeout=setTimeout(fail,url.includes('/api/public/compatible/')?25000:15000);
   // Keep the video renderable beneath the loading overlay for frame callbacks.
   v.classList.remove('hidden');
   v.onerror=fail;
