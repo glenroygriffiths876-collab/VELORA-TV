@@ -43,6 +43,10 @@ test('closed captions can appear after stream starts, be selected, and switched 
   assert.equal(v.textTracks[0].mode,'showing');
   assert.equal(api.choose('off'),true);
   assert.equal(v.textTracks[0].mode,'disabled');
+  // A late in-band caption should remain off until the viewer explicitly enables it.
+  v.textTracks.push({kind:'captions',label:'Spanish CC',language:'es',mode:'showing'});
+  v.fire('addtrack');
+  assert.equal(v.textTracks[1].mode,'disabled');
 });
 test('HLS subtitle language selection survives a channel switch without keeping stale tracks',()=>{
   const {api}=harness();

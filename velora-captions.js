@@ -42,7 +42,7 @@
   function disableNative(){
     const ts=session?.video?.textTracks;
     if(!ts)return;
-    for(let i=0;i<ts.length;i++)try{ts[i].mode='disabled'}catch{}
+    for(let i=0;i<ts.length;i++)try{if(ts[i].mode!=='disabled')ts[i].mode='disabled'}catch{}
   }
   function matches(a,b){return a&&b&&a.kind===b.kind&&a.id===b.id}
   function apply(track){
@@ -68,6 +68,12 @@
   function sync(){
     if(!session)return render();
     const options=available();
+    if(!pref.enabled){
+      if(selected){apply(null);return}
+      disableNative();
+      if(session.hls?.subtitleDisplay)try{session.hls.subtitleDisplay=false;session.hls.subtitleTrack=-1}catch{}
+      return render();
+    }
     if(selected&&!options.some(t=>matches(t,selected)))selected=null;
     if(pref.enabled&&!selected&&options.length){
       const preferred=options.find(t=>pref.language&&normalize(t.language)===normalize(pref.language))||options[0];
