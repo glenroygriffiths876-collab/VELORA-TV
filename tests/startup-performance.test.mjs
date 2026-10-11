@@ -18,7 +18,7 @@ test('channel selection begins local playback without awaiting a source search',
 });
 test('catalogue refresh keeps the existing live player and selection',()=>{
  let rendered=0,persisted=0,refreshed=0;const playing={id:'chosen'},video={};
- const ctx={state:{currentChannel:playing},v7ProviderToLocal:x=>x,v7MediaUrl:x=>x,
+ const ctx={state:{currentChannel:playing},v7LiveCandidates:()=>['playing.m3u8'],v7ProviderToLocal:x=>x,v7MediaUrl:x=>x,
   persist(){persisted++},renderAll(){rendered++},drawChannelList(){refreshed++},
   document:{getElementById:id=>id==='inlineLive'?video:id==='view-live'?{classList:{contains:()=>true}}:null}};
  ctx.window=ctx;vm.createContext(ctx);vm.runInContext(between(client,'function v7ApplySnapshot','async function v7LoadSnapshot'),ctx);
@@ -68,4 +68,24 @@ test('duplicate relay routes are tried once while distinct sources and Jamaica d
  const urls=ctx.v7LiveCandidates({clientUrls:[upstream],url:'/api/public/channel/one',upstreamUrl:upstream,
    sources:[{url:'/api/public/relay?token=one',upstreamUrl:upstream},{url:'/api/public/relay?token=two',upstreamUrl:'https://other.example/live.m3u8'}]});
  assert.deepEqual([...urls],[upstream,'/api/public/channel/one','/api/public/relay?token=two']);
+});
+
+
+test('late sign-in hydrates catalogue once even when startup timer also fires',async()=>{
+ let resolve,calls=0,applied=0;const ctx={state:{user:null},Promise,console,
+ v7Request:()=>{calls++;return new Promise(r=>resolve=r)},v7ApplySnapshot:()=>applied++};vm.createContext(ctx);
+ vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate'),ctx);
+ await ctx.v7AutoHydrate();assert.equal(calls,0);
+ ctx.state.user={id:'tester'};const first=ctx.v7AutoHydrate(),second=ctx.v7AutoHydrate();
+ assert.equal(first,second);assert.equal(calls,1);resolve({stats:{channels:1}});await first;assert.equal(applied,1);
+ const app=fs.readFileSync('app.js','utf8');assert.ok(between(app,'window.veloraEnterApp=function','window.veloraExitApp').includes('window.v7AutoHydrate?.()'));
+});
+test('first catalogue upgrades the selected placeholder only, preserving channel identity',()=>{
+ const selected={id:'official-tvj',name:'TVJ'};const tuned=[];
+ const ctx={state:{currentChannel:selected},v7ProviderToLocal:x=>x,v7MediaUrl:x=>x,
+ v7LiveCandidates:c=>c.url?[c.url]:[],v7ChannelNameKey:c=>c.name.toLowerCase(),
+ selectChannel:id=>tuned.push(id),persist(){},renderAll(){throw new Error('must not rebuild player')},drawChannelList(){},
+ document:{getElementById:id=>id==='inlineLive'?{}:id==='view-live'?{classList:{contains:()=>true}}:null}};
+ ctx.window=ctx;vm.createContext(ctx);vm.runInContext(between(client,'function v7ApplySnapshot','async function v7LoadSnapshot'),ctx);
+ ctx.v7ApplySnapshot({channels:[{id:'bbc',name:'BBC',url:'bbc.m3u8'},{id:'direct-tvj',name:'TVJ',url:'tvj.m3u8'}]});assert.deepEqual(tuned,['direct-tvj']);
 });

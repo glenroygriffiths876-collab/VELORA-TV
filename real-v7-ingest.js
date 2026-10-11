@@ -66,6 +66,14 @@ function v7ApplySnapshot(d){
   if(document.getElementById('inlineLive')&&document.getElementById('view-live')?.classList.contains('active')){
     drawChannelList(document.getElementById('channelSearch')?.value||'');
     window.veloraVerifiedGuide?.refresh?.();
+    // On a first visit the official placeholder may precede the direct feed.
+    // Upgrade only that same selected channel; never select a different name.
+    const selected=state.currentChannel;
+    if(selected&&!v7LiveCandidates(selected).length){
+      const same=state.channels.find(x=>x.id===selected.id)||
+        state.channels.find(x=>v7ChannelNameKey(x)===v7ChannelNameKey(selected));
+      if(same&&v7LiveCandidates(same).length)selectChannel(same.id,true);
+    }
   }else renderAll();
 }
 async function v7LoadSnapshot(showToast=true){
@@ -290,12 +298,19 @@ drawGuide=function(){
     (all.length>list.length?`<div class="v7GuideMore">Guide preview shows ${list.length.toLocaleString()} of ${all.length.toLocaleString()} channels. Use the channel search and category filters for the complete catalogue.</div>`:'');
 };
 
-async function v7AutoHydrate(){
-  if(!state.user)return;
-  try{
-    const d=await v7Request('/api/catalogue',{headers:{}});
-    if((d.stats?.channels||0)>0||(d.stats?.vod||0)>0)v7ApplySnapshot(d);
-  }catch(e){console.warn('Velora backend catalogue unavailable',e)}
+let V7_HYDRATE_PENDING=null;
+function v7AutoHydrate(){
+  if(!state.user)return Promise.resolve(null);
+  if(V7_HYDRATE_PENDING)return V7_HYDRATE_PENDING;
+  V7_HYDRATE_PENDING=(async()=>{
+    try{
+      const d=await v7Request('/api/catalogue',{headers:{}});
+      if(state.user&&((d.stats?.channels||0)>0||(d.stats?.vod||0)>0))v7ApplySnapshot(d);
+      return d;
+    }catch(e){console.warn('Velora backend catalogue unavailable',e)}
+    finally{V7_HYDRATE_PENDING=null}
+  })();
+  return V7_HYDRATE_PENDING;
 }
 setTimeout(v7AutoHydrate,900);
 
