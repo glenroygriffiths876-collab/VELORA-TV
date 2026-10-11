@@ -156,7 +156,9 @@ window.veloraEnterApp=function(user){
   store.set('profile',state.profile);
   document.getElementById('login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  applyProfile();renderAll();showView('home');ensureOpenLibrary();
+  applyProfile();renderAll();showView('home');
+  window.v7AutoHydrate?.();
+  ensureOpenLibrary();
 }
 window.veloraExitApp=function(){
   state.user=null;
