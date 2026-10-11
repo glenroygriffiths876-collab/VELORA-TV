@@ -11,7 +11,9 @@ function v7Api(path){
 }
 async function v7Request(path,options={}){
   const token=localStorage.getItem('velora_auth_token')||'';
-  const r=await fetch(v7Api(path),{...options,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{}),...(options.headers||{})}});
+  const publicRead=(!options.method||options.method==='GET')&&(path==='/api/catalogue'||path==='/api/discovery');
+  const headers=publicRead?{accept:'application/json'}:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})};
+  const r=await fetch(v7Api(path),{...options,headers:{...headers,...(options.headers||{})}});
   const ct=r.headers.get('content-type')||'';
   const body=ct.includes('application/json')?await r.json():{error:await r.text()};
   if(!r.ok)throw new Error(body.error||('HTTP '+r.status));
@@ -48,7 +50,7 @@ function v7MediaUrl(url){
   if(/^\/api\//.test(url))return v7BackendBase()+url;
   return url;
 }
-function v7ApplySnapshot(d){
+function v7ApplySnapshot(d,{persistSnapshot=true,background=false}={}){
   if(!d)return;
   state.providers=(d.providers||[]).map(v7ProviderToLocal);
   state.channels=(d.channels||[]).map(x=>({
@@ -61,7 +63,7 @@ function v7ApplySnapshot(d){
     url:v7MediaUrl(x.url),
     sources:(x.sources||[]).map(src=>({...src,url:v7MediaUrl(src.url),sourceId:src.sourceId||src.providerId,sourceName:src.sourceName||src.providerName}))
   }));
-  persist();
+  if(persistSnapshot)persist();
   // A background catalogue refresh must not destroy/restart the current video.
   if(document.getElementById('inlineLive')&&document.getElementById('view-live')?.classList.contains('active')){
     drawChannelList(document.getElementById('channelSearch')?.value||'');
@@ -74,7 +76,7 @@ function v7ApplySnapshot(d){
         state.channels.find(x=>v7ChannelNameKey(x)===v7ChannelNameKey(selected));
       if(same&&v7LiveCandidates(same).length)selectChannel(same.id,true);
     }
-  }else renderAll();
+  }else if(!background)renderAll();
 }
 async function v7LoadSnapshot(showToast=true){
   try{
@@ -298,10 +300,32 @@ drawGuide=function(){
     (all.length>list.length?`<div class="v7GuideMore">Guide preview shows ${list.length.toLocaleString()} of ${all.length.toLocaleString()} channels. Use the channel search and category filters for the complete catalogue.</div>`:'');
 };
 
+// Small shared shortlist arrives independently of the complete searchable catalogue.
+let V7_DISCOVERY_PENDING=null;
+window.veloraDiscoveryHints=new Map();
+function v7ApplyDiscovery(d){
+  if(!state.user||!Array.isArray(d.channels))return;
+  window.veloraDiscoveryHints=new Map(d.channels.map(c=>[c.id,Date.now()]));
+  const merged=new Map((state.channels||[]).map(c=>[c.id,c]));
+  for(const c of d.channels)merged.set(c.id,c);
+  v7ApplySnapshot({providers:state.providers||[],channels:[...merged.values()],catalog:state.catalog||[]},{persistSnapshot:false,background:true});
+}
+window.v7RefreshDiscovery=function(){
+  if(!state.user||document.hidden)return Promise.resolve(null);
+  if(V7_DISCOVERY_PENDING)return V7_DISCOVERY_PENDING;
+  const ac=new AbortController();const timer=setTimeout(()=>ac.abort(),8000);
+  V7_DISCOVERY_PENDING=v7Request('/api/discovery',{signal:ac.signal})
+    .then(d=>{v7ApplyDiscovery(d);return d})
+    .catch(()=>null).finally(()=>{clearTimeout(timer);V7_DISCOVERY_PENDING=null});
+  return V7_DISCOVERY_PENDING;
+};
+setInterval(()=>window.v7RefreshDiscovery(),30000);
+
 let V7_HYDRATE_PENDING=null;
 function v7AutoHydrate(){
   if(!state.user)return Promise.resolve(null);
   if(V7_HYDRATE_PENDING)return V7_HYDRATE_PENDING;
+  if(typeof window!=='undefined')window.v7RefreshDiscovery?.();
   V7_HYDRATE_PENDING=(async()=>{
     try{
       const d=await v7Request('/api/catalogue',{headers:{}});
@@ -457,6 +481,9 @@ function v7LiveCandidates(c){
     if(!seen.has(key)&&!urls.includes(u)){seen.add(key);urls.push(u)}
   };
   for(const u of (c.clientUrls||[]))add(u);
+  // A fresh successful server source precedes stale alternatives, but direct
+  // territory-specific device URLs above retain first choice.
+  for(const src of (c.sources||[]))if(src.health==='up'&&Date.now()-(Date.parse(src.lastChecked)||0)<20*60000)add(src.url,src.upstreamUrl);
   add(c.url,c.upstreamUrl);
   for(const src of (c.sources||[]))add(src.url,src.upstreamUrl);
   return urls;

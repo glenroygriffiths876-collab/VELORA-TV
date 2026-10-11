@@ -277,6 +277,8 @@
   function priority(c) {
     const played=Date.parse(c.lastPlaybackSuccessAt||0)||0;
     const failed=Date.parse(c.lastPlaybackFailureAt||0)||0;
+    const hint=window.veloraDiscoveryHints?.get(c.id)||0;
+    if(Date.now()-hint<90000)return 500000;
     if(played>failed&&Date.now()-played<24*3600000)return 100000;
     if(c.availability==='up')return 4000;
     if((c.sources||[]).some(s=>s.health==='up'))return 2000;
