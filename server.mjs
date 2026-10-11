@@ -859,7 +859,8 @@ async function relayPublicUrl(req,res,target){
   await assertSafeUrl(target);
   const headers={};
   if(req.headers.range)headers.range=req.headers.range;
-  const ac=new AbortController();req.on('close',()=>ac.abort());
+  const ac=new AbortController();
+  res.once('close',()=>{if(!res.writableFinished)ac.abort()});
   const r=await fetch(target,{headers,signal:ac.signal,redirect:'follow'});
   const ct=(r.headers.get('content-type')||'').toLowerCase();
   const isHls=ct.includes('mpegurl')||/\.m3u8(?:$|\?)/i.test(r.url||target);
@@ -1188,7 +1189,8 @@ async function proxyUpstream(req,res,provider,kind,id,ext=''){
   await assertSafeUrl(target);
   const headers={};
   if(req.headers.range)headers.range=req.headers.range;
-  const ac=new AbortController();req.on('close',()=>ac.abort());
+  const ac=new AbortController();
+  res.once('close',()=>{if(!res.writableFinished)ac.abort()});
   const r=await fetch(target,{headers,signal:ac.signal,redirect:'follow'});
   const outHeaders={'cache-control':'no-store','access-control-allow-origin':'*'};
   for(const h of ['content-type','content-length','content-range','accept-ranges']){const v=r.headers.get(h);if(v)outHeaders[h]=v}

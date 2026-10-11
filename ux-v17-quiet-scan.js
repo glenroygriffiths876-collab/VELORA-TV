@@ -3,7 +3,8 @@
 (() => {
   'use strict';
   const KEY='velora_verified_video_v17';
-  const FRESH_MS=4*60*60*1000;
+  const FRESH_MS=24*60*60*1000;
+  const RECHECK_MS=4*60*60*1000;
   const RETRY_MS=15*60*1000;
   const FAIL_MS=20*60*1000;
   // No fixed channel target or per-session attempt cap. Scanning is a
@@ -11,9 +12,14 @@
   const DISCOVERY_BATCH=36;
   const HEARTBEAT_MS=12000;
   const BATCH_PAUSE_MS=900;
-  const MAX_WORKERS=3;
-  const ACTIVE_VIEW_WORKERS=2;
-  const PROBE_MS=3000;
+  const MAX_WORKERS=2;
+  const ACTIVE_VIEW_WORKERS=1;
+  const PROBE_MS=15000;
+  const RECOVERY_MS=60000;
+  const activeProbes=new Set();
+  const sourceOffsets=new Map();
+  let consecutiveFailures=0,recoveryUntil=0;
+  const outcomes={video:0,timeout:0,error:0,cancelled:0};
   const known=new Map();
   const workingUrls=new Map(); // confirmed stream URL kept in RAM, never in storage
   const blocked=new Map();
@@ -137,7 +143,7 @@
   function quietFindMore(urgent=false) {
     // Scan More wakes a sleeping scanner but never removes source cooldowns
     // or launches multiple competing video decoders.
-    if(urgent)clearTimeout(scanRestartTimer);
+    if(urgent){clearTimeout(scanRestartTimer);recoveryUntil=0;consecutiveFailures=0;}
     if(!scanning)startDiscovery();
   }
   function activePlaying() {
@@ -256,7 +262,8 @@
   };
 
   function isCandidate(c) {
-    if(!c?.id||working(c)||blocked.get(c.id)>Date.now())return false;
+    if(!c?.id||blocked.get(c.id)>Date.now())return false;
+    if(working(c)&&Date.now()-known.get(c.id).at<RECHECK_MS)return false;
     // A prior selection failure cannot ban a stream forever. Its cooldown
     // expires just like failures discovered by the background scanner.
     // Check Jamaican streams directly from the viewer's territory too.
@@ -275,7 +282,7 @@
   }
   function probeVideo(c,url,ms=PROBE_MS) {
     return new Promise(resolve=>{
-      if(!url)return resolve(false);
+      if(!url)return resolve('error');
       let finished=false,hls=null,frameId=null;
       const v=document.createElement('video');
       v.muted=true;v.defaultMuted=true;v.autoplay=true;
@@ -284,56 +291,78 @@
       // Must be attached for decoded frames on Android WebView/Chrome.
       v.style.cssText='position:fixed;left:-9999px;top:0;width:8px;height:8px;opacity:0;pointer-events:none;';
       document.body.appendChild(v);
-      const finish=ok=>{
+      const finish=result=>{
         if(finished)return;
         finished=true;
+        activeProbes.delete(cancel);
         clearTimeout(timer);clearInterval(poll);
         try{if(frameId!==null)v.cancelVideoFrameCallback?.(frameId)}catch{}
         try{hls?.destroy()}catch{}
         try{v.pause();v.removeAttribute('src');v.load()}catch{}
         v.remove();
-        resolve(!!ok);
+        resolve(result);
       };
+      const cancel=()=>finish('cancelled');
+      activeProbes.add(cancel);
       const decoded=()=>v.videoWidth>0&&v.videoHeight>0&&!v.paused&&v.readyState>=2&&v.currentTime>.08;
-      const poll=setInterval(()=>{if(decoded())finish(true)},250);
-      const timer=setTimeout(()=>finish(false),ms);
-      v.onerror=()=>finish(false);
+      const poll=setInterval(()=>{if(decoded())finish('video')},250);
+      const timer=setTimeout(()=>finish('timeout'),ms);
+      v.onerror=()=>finish('error');
       v.onloadeddata=()=>{v.play().catch(()=>{})};
       v.oncanplay=()=>{v.play().catch(()=>{})};
       if(typeof v.requestVideoFrameCallback==='function') {
         try {
           frameId=v.requestVideoFrameCallback(()=>{
-            if(v.videoWidth>0&&v.videoHeight>0)finish(true);
+            if(v.videoWidth>0&&v.videoHeight>0)finish('video');
           });
         }catch{}
       }
       try {
         if(window.Hls&&Hls.isSupported()&&(/\.m3u8(?:$|\?)/i.test(url)||url.includes('/api/public/'))) {
-          hls=new Hls({enableWorker:true,maxBufferLength:3,manifestLoadingTimeOut:4000,
-            levelLoadingTimeOut:4000,fragLoadingTimeOut:4000});
-          hls.on(Hls.Events.ERROR,(_,detail)=>{if(detail?.fatal)finish(false)});
+          hls=new Hls({enableWorker:true,maxBufferLength:3,startLevel:0,capLevelToPlayerSize:true,manifestLoadingTimeOut:10000,
+            levelLoadingTimeOut:10000,fragLoadingTimeOut:10000});
+          hls.on(Hls.Events.ERROR,(_,detail)=>{if(detail?.fatal)finish('error')});
           hls.attachMedia(v);
           hls.loadSource(url);
           hls.on(Hls.Events.MANIFEST_PARSED,()=>{v.play().catch(()=>{})});
         } else {
           v.src=url;v.load();v.play().catch(()=>{});
         }
-      } catch {finish(false)}
+      } catch {finish('error')}
     });
   }
   async function checkCandidate(c,epoch) {
     if(epoch!==generation||document.hidden||!isCandidate(c))return;
     checked.set(c.id,Date.now());
-    const urls=v7LiveCandidates(c).slice(0,2);
-    let winningUrl='';
+    const all=v7LiveCandidates(c);
+    const offset=sourceOffsets.get(c.id)||0;
+    // Rotate alternatives across rounds rather than permanently ignoring #3+.
+    const urls=all.slice(offset).concat(all.slice(0,offset)).slice(0,2);
+    sourceOffsets.set(c.id,(offset+urls.length)%Math.max(1,all.length));
+    let winningUrl='',result='error';
     for(const url of urls) {
       if(epoch!==generation||document.hidden)break;
-      if(await probeVideo(c,url)){winningUrl=url;break}
+      result=await probeVideo(c,url);
+      outcomes[result]++;
+      if(result==='video'){winningUrl=url;break}
+      if(result==='cancelled')break;
     }
-    if(epoch!==generation)return;
-    if(winningUrl)mark(c,true,winningUrl);
-    else blocked.set(c.id,Date.now()+FAIL_MS);
+    if(epoch!==generation||document.hidden||result==='cancelled'){
+      checked.delete(c.id);return;
+    }
+    checkedInSession++;
+    if(winningUrl){
+      consecutiveFailures=0;recoveryUntil=0;mark(c,true,winningUrl);
+    }else{
+      consecutiveFailures++;
+      // A background timeout is inconclusive; retain previous verified entries.
+      if(!known.has(c.id))blocked.set(c.id,Date.now()+(result==='timeout'?RECOVERY_MS:FAIL_MS));
+      if(result==='timeout')checked.set(c.id,Date.now()-RETRY_MS+RECOVERY_MS);
+      if(consecutiveFailures>=12)recoveryUntil=Date.now()+RECOVERY_MS;
+    }
+    window.veloraVerifiedGuide?.refresh?.();
   }
+
   function discoveryPool() {
     const {rows}=catalog();
     const current=state.currentChannel?.id;
@@ -342,13 +371,13 @@
         c,i,
         // Never-tested sources first, then previously successful/high-quality
         // sources, without repeatedly rescanning the same small top-100 pool.
-        score:(checked.has(c.id)?0:1000000)+priority(c)
+        score:(known.has(c.id)?2000000:checked.has(c.id)?0:1000000)+priority(c)
       }))
       .sort((a,b)=>b.score-a.score||a.i-b.i)
       .slice(0,DISCOVERY_BATCH).map(x=>x.c);
   }
   function startDiscovery() {
-    if(scanning||document.hidden)return;
+    if(scanning||document.hidden||navigator.onLine===false||Date.now()<recoveryUntil)return;
     clearTimeout(scanRestartTimer);
     const queue=discoveryPool();
     if(!queue.length){
@@ -360,9 +389,8 @@
     const epoch=++generation;
     let next=0;
     const worker=async()=>{
-      while(epoch===generation&&!document.hidden&&next<queue.length){
+      while(epoch===generation&&!document.hidden&&navigator.onLine!==false&&Date.now()>=recoveryUntil&&next<queue.length){
         const c=queue[next++];
-        checkedInSession++;
         lastAttemptAt=Date.now();
         await checkCandidate(c,epoch);
       }
@@ -416,10 +444,12 @@
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){
       generation++;scanning=false;
+      for(const cancel of [...activeProbes])cancel();
       clearTimeout(scanRestartTimer);
       pendingNext=null;
     } else kick();
   });
+  window.addEventListener('online',()=>quietFindMore(true));
   document.addEventListener('playing',e=>{
     if(e.target?.id!=='inlineLive')return;
     setTimeout(()=>{if(activePlaying()&&state.currentChannel)mark(state.currentChannel)},800);
@@ -430,7 +460,9 @@
     scan:()=>quietFindMore(true),
     scanStatus:()=>({verified:readyList().length,checked:checkedInSession,
       scanning,cycles,successful:successfulInSession,lastAttemptAt,
-      lastNewChannelAt,continuous:true,paused:document.hidden})
+      lastNewChannelAt,continuous:true,paused:document.hidden,
+      offline:navigator.onLine===false,recovering:Date.now()<recoveryUntil,
+      recoveryUntil,consecutiveFailures,outcomes:{...outcomes}})
   };
   kick();
 })();
