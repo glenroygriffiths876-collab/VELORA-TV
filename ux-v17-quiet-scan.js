@@ -378,6 +378,7 @@
   }
   function startDiscovery() {
     if(scanning||document.hidden||navigator.onLine===false||Date.now()<recoveryUntil)return;
+    if(recoveryUntil){recoveryUntil=0;consecutiveFailures=0;}
     clearTimeout(scanRestartTimer);
     const queue=discoveryPool();
     if(!queue.length){
