@@ -25,7 +25,8 @@
       scan?.recovering?'Sources are not passing video checks • retrying shortly; your channel stays selected':
       scan?.paused?'Scanning pauses when VELORA is in the background':
       (scan?.scanning?'Scanning continuously • '+(scan.checked||0).toLocaleString()+' tested this session':
-        'Rechecking sources on cooldown • '+(scan?.checked||0).toLocaleString()+' tested');
+        'Rechecking sources on cooldown • '+(scan?.checked||0).toLocaleString()+' tested')+
+        (scan?.shared?' • '+scan.shared.toLocaleString()+' shared leads being verified on this device':'');
     const q=String(document.getElementById('veloraVerifiedSearch')?.value||'').trim().toLowerCase();
     const filtered=rows.filter(c=>v7SearchText(c.name+' '+(c.group||'')).includes(v7SearchText(q))||
       (q&&window.veloraProgrammeLookup?.(c,q)));
