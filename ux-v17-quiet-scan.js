@@ -252,7 +252,9 @@
     const remembered=known.get(c.id);
     const best=workingUrls.get(c.id)||
       urls[Math.min(urls.length-1,Math.max(0,Number(remembered?.sourceIndex||0)))];
-    return best?[best]:[];
+    // Do not force an expensive backend resolver after one cached URL fails.
+    // Keep a few local alternatives ready for the existing player failover.
+    return best?[best,...urls.filter(u=>u!==best)].slice(0,4):[];
   };
 
   // V7's original unavailable overlay remains for explicit Search selections.

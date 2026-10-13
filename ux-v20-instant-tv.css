@@ -1,0 +1,27 @@
+
+/* Instant directory; neutral labels don't misrepresent historical video as verified. */
+#view-live .veloraInstantGuide{margin:13px 0 14px;padding:15px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:linear-gradient(145deg,#111823,#0a1019);box-shadow:0 10px 26px #0003}
+#view-live .veloraInstantHead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#view-live .veloraInstantHead h3{font-size:17px;color:#f3f7fc;margin:6px 0 4px}
+#view-live .veloraInstantHead h3 span{background:#203846;color:#b8f2df;padding:3px 9px;border-radius:20px;font-size:12px;vertical-align:middle}
+#view-live .veloraInstantHead p{font-size:11px;line-height:1.4;color:#9ca9ba;margin:0 0 12px}
+#view-live #veloraInstantShowSearch{background:#142b32;border:1px solid #2aa9a071;border-radius:10px;color:#b4ebe5;padding:10px 12px;font-weight:700;font-size:12px}
+#view-live #veloraInstantSearch{box-sizing:border-box;width:100%;border:1px solid #ffffff21;background:#0b1119;color:#fafcff;padding:11px 13px;font-size:14px;border-radius:11px;outline:0}
+#view-live #veloraInstantSearch:focus{border-color:#37c4af}
+#view-live .veloraInstantFilters{display:flex;gap:7px;overflow-x:auto;padding:11px 0 5px;scrollbar-width:thin}
+#view-live .veloraInstantFilter{flex:0 0 auto;border:1px solid #ffffff23;background:#111d2c;border-radius:100px;padding:7px 11px;color:#b6c4d6;font-size:11px;font-weight:700}
+#view-live .veloraInstantFilter.active{color:#adfff1;background:#14483f;border-color:#1fb7a2}
+#view-live .veloraInstantStatus{font-size:11px;color:#8e9bac;margin:9px 0}
+#view-live .veloraInstantRows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-height:410px;overflow-y:auto;scrollbar-width:thin;padding-right:3px}
+#view-live .veloraInstantChannel{display:flex;align-items:center;gap:9px;min-width:0;min-height:48px;text-align:left;background:#141d29;border:1px solid #ffffff12;border-radius:11px;color:#f1f5fa;padding:9px 11px;cursor:pointer}
+#view-live .veloraInstantChannel.playing{border-color:#20c0aa;background:#16352f}
+#view-live .veloraInstantChannelName{flex:1;min-width:0;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#view-live .veloraInstantChannelName small{display:block;color:#8292a7;font-weight:500;font-size:10px;margin-top:3px;overflow:hidden;text-overflow:ellipsis}
+#view-live .veloraInstantChannelStatus{flex:0 0 auto;font-size:10px;color:#9eabc0;max-width:95px;text-align:right;line-height:1.3}
+#view-live .veloraInstantChannelStatus.ready{color:#46dbba}
+#view-live .veloraInstantChannelStatus.historical{color:#e2bd87}
+#view-live .veloraInstantMore{width:100%;margin-top:10px;background:#192939;color:#cde9ff;border:1px solid #ffffff23;border-radius:9px;padding:12px;font-weight:700;font-size:12px}
+#view-live .veloraInstantMore[hidden]{display:none!important}
+#view-live .veloraInstantEmpty{grid-column:1/-1;font-size:12px;color:#93a1b2;padding:10px}
+@media(max-width:860px){#view-live .veloraInstantRows{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){#view-live .veloraInstantGuide{padding:12px}#view-live .veloraInstantRows{grid-template-columns:1fr;max-height:340px}#view-live .veloraInstantHead h3{font-size:15px}}

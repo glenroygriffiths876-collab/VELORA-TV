@@ -130,9 +130,12 @@ test('public startup reads avoid auth preflight while private requests retain au
  const requests=[];const ctx={localStorage:{getItem:()=> 'token'},v7Api:x=>x,fetch:async(url,opts)=>{
  requests.push({url,...opts});return {ok:true,headers:{get:()=> 'application/json'},json:async()=>({ok:true})}}};
  vm.createContext(ctx);vm.runInContext(between(client,'async function v7Request','function v7StatusBadge'),ctx);
- await ctx.v7Request('/api/catalogue');await ctx.v7Request('/api/discovery');await ctx.v7Request('/api/private');
+ await ctx.v7Request('/api/catalogue');await ctx.v7Request('/api/discovery');
+ await ctx.v7Request('/api/live/lineup');await ctx.v7Request('/api/private');
  assert.equal(requests[0].headers.authorization,undefined);assert.equal(requests[1].headers['content-type'],undefined);
- assert.equal(requests[2].headers.authorization,'Bearer token');
+ assert.equal(requests[2].headers.authorization,undefined);
+ assert.equal(requests[2].headers['content-type'],undefined);
+ assert.equal(requests[3].headers.authorization,'Bearer token');
 });
 test('fresh successful alternate is tried before dead primary without dropping direct device URLs',()=>{
  const ctx={v7MediaUrl:u=>u};vm.createContext(ctx);vm.runInContext(between(client,'function v7LiveCandidates','async function v7ResolveCandidates'),ctx);
@@ -206,4 +209,26 @@ test('shared channel history remains separate from genuinely confirmed working r
  assert.match(script,/only locally confirmed video enters Working/i);
  assert.match(scan,/const HISTORY_MS=7\*24\*60\*60\*1000/);
  assert.match(scan,/return Date\.now\(\)-Number\(stored\.at\|\|0\)<FRESH_MS/);
+});
+
+test('compact channel-only lineup does not include the movie and provider catalogues',()=>{
+ const source=fs.readFileSync('server.mjs','utf8');
+ const ctx={db:{updatedAt:'today',channels:[{id:'tvj',url:'tvj.m3u8'}],catalog:[{id:'movie'}],providers:[{id:'private'}]}};
+ vm.createContext(ctx);vm.runInContext(between(source,'function instantLineupSnapshot','function publicSnapshot'),ctx);
+ const snapshot=ctx.instantLineupSnapshot();
+ assert.equal(snapshot.channels.length,1);
+ assert.equal(snapshot.catalog,undefined);
+ assert.equal(snapshot.providers,undefined);
+ assert.equal(snapshot.stats.channels,1);
+ assert.match(source,/p==='\/api\/live\/lineup'/);
+});
+test('instant guide is a complete catalogue, not an expanded unverified Working count',()=>{
+ const source=fs.readFileSync('ux-v20-instant-tv.js','utf8');
+ assert.match(source,/filteredChannels\(\)/);
+ assert.match(source,/all\.slice\(0,shown\)/);
+ assert.match(source,/const PAGE=60/);
+ assert.match(source,/Tap to try/);
+ assert.match(source,/veloraVerifiedChannels\?\.ids/);
+ assert.match(source,/data-channel/);
+ assert.doesNotMatch(source,/window\.veloraTuneWorkingChannel\s*=/);
 });

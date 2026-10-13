@@ -125,3 +125,9 @@ test('cold compatibility conversion is allowed to produce video before being rej
  const h=harness([{id:'ae',url}],{[url]:{delay:18000}});await h.tick(20000);
  assert.ok(h.api.ids().includes('ae'));assert.equal(h.api.scanStatus().outcomes.timeout,0);
 });
+
+test('previously verified source has local failover URLs before a fresh network resolve',()=>{
+ const script=fs.readFileSync('ux-v17-quiet-scan.js','utf8');
+ assert.match(script,/best,\.\.\.urls\.filter\(u=>u!==best\)/);
+ assert.match(script,/slice\(0,4\)/);
+});

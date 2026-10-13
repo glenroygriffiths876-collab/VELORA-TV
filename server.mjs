@@ -645,6 +645,11 @@ async function sendCatalogue(req,res,snapshot){
     res.writeHead(200,{...headers,'content-encoding':'gzip'});res.end(compressed);
   }else{res.writeHead(200,headers);res.end(body)}
 }
+function instantLineupSnapshot(){
+  // Narrower than /api/catalogue: no film library, EPG data or provider records.
+  // Channels keep their existing source candidates so a tap can tune immediately.
+  return {updatedAt:db.updatedAt,channels:db.channels,stats:{channels:db.channels.length}};
+}
 function publicSnapshot(){
   return {
     updatedAt:db.updatedAt,
@@ -1353,6 +1358,7 @@ async function api(req,res){
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
   if(req.method==='GET'&&p==='/api/discovery')return sendCatalogue(req,res,discoverySnapshot());
   if(req.method==='GET'&&p==='/api/catalogue')return sendCatalogue(req,res,publicSnapshot());
+  if(req.method==='GET'&&p==='/api/live/lineup')return sendCatalogue(req,res,instantLineupSnapshot());
   if(req.method==='POST'&&p==='/api/epg/programmes'){
     let body={};try{body=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid programme request'})}
     return json(res,200,getProgrammeGuide(body.channels));
