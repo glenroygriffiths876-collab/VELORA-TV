@@ -424,7 +424,15 @@ function v7ChannelQuarantined(x){
   const checked=Date.parse(x?.lastAvailabilityCheck||0)||0;
   return !!checked && Date.now()-checked<30*60000;
 }
+let V7_SORTED_CHANNELS_CACHE={channels:null,history:'',territory:'',at:0,items:null};
 filteredChannels=function(){
+  // The guide, search, and background verifier all ask for the same order.
+  // Sorting thousands of channels for each keypress/probe causes phone lag.
+  const historyKey=(state.history||[]).slice(0,30).join('|');
+  const now=Date.now();
+  const cache=V7_SORTED_CHANNELS_CACHE;
+  if(cache.channels===state.channels&&cache.history===historyKey&&
+    cache.territory===state.territory&&now-cache.at<10000&&cache.items)return cache.items;
   const officialByKey=new Map(V5_OFFICIAL_CHANNELS.map(x=>[v7ChannelNameKey(x),x]));
   const bulk=state.channels
     // Keep unavailable entries searchable and manually retryable. The default
@@ -500,10 +508,13 @@ filteredChannels=function(){
     if(recent>=0)score+=Math.max(40,360-recent*20);
     return score;
   };
-  return unique
+  const items=unique
     .map((x,i)=>({x,i,p:popularityScore(x)}))
     .sort((a,b)=>b.p-a.p||String(a.x.name||'').localeCompare(String(b.x.name||''))||a.i-b.i)
     .map(v=>v.x);
+  V7_SORTED_CHANNELS_CACHE={channels:state.channels,history:historyKey,
+    territory:state.territory,at:now,items};
+  return items;
 };
 
 function v7CatalogueSummary(){
