@@ -348,6 +348,11 @@ window.v7FastLiveHydrate=function(){
         channels:d.channels,providers:state.providers||[],catalog:state.catalog||[]
       },{persistSnapshot:false,background:true});
       window.veloraInstantGuide?.refresh?.();
+      // Retain a usable Live listing if the later VOD download fails.
+      setTimeout(()=>{
+        if(state.user?.id!==account||V7_FULL_CATALOGUE_READY)return;
+        try{store.set('channels',state.channels)}catch{}
+      },1200);
       return d;
     })
     .catch(()=>null)
@@ -355,23 +360,54 @@ window.v7FastLiveHydrate=function(){
   return V7_FAST_LINEUP_PENDING;
 };
 let V7_HYDRATE_PENDING=null;
+let V7_FULL_REFRESH_TIMER=null;
+let V7_LAST_FULL_REFRESH=0;
+async function v7RefreshFullCatalogue(account){
+  try{
+    const d=await v7Request('/api/catalogue',{headers:{}});
+    if(state.user?.id!==account)return null;
+    if((d.stats?.channels||0)>0||(d.stats?.vod||0)>0){
+      V7_FULL_CATALOGUE_READY=true;
+      V7_LAST_FULL_REFRESH=Date.now();
+      // Update channel listings and movies without rebuilding a playing TV.
+      v7ApplySnapshot(d,{persistSnapshot:true,background:true});
+    }
+    return d;
+  }catch(e){
+    console.warn('Velora full catalogue temporarily unavailable',e);
+    return null;
+  }
+}
+function v7ScheduleFullCatalogue(account){
+  clearTimeout(V7_FULL_REFRESH_TIMER);
+  V7_FULL_REFRESH_TIMER=setTimeout(()=>{
+    if(state.user?.id===account)v7RefreshFullCatalogue(account);
+  },6500);
+}
 function v7AutoHydrate(){
   if(!state.user)return Promise.resolve(null);
   if(V7_HYDRATE_PENDING)return V7_HYDRATE_PENDING;
-  if(typeof window!=='undefined'){
-    window.v7FastLiveHydrate?.();
-    window.v7RefreshDiscovery?.();
-  }
+  const account=state.user.id;
+  // Shared leads refresh independently and may not interrupt the picture.
+  window.v7RefreshDiscovery?.();
   V7_HYDRATE_PENDING=(async()=>{
     try{
-      const d=await v7Request('/api/catalogue',{headers:{}});
-      if(state.user&&((d.stats?.channels||0)>0||(d.stats?.vod||0)>0)){
-        V7_FULL_CATALOGUE_READY=true;
-        v7ApplySnapshot(d);
+      if(V7_FULL_CATALOGUE_READY){
+        // A second profile on this device can browse the resident directory.
+        if(Date.now()-V7_LAST_FULL_REFRESH>3*60*1000)
+          v7ScheduleFullCatalogue(account);
+        return {cached:true};
       }
-      return d;
-    }catch(e){console.warn('Velora backend catalogue unavailable',e)}
-    finally{V7_HYDRATE_PENDING=null}
+      const fast=await window.v7FastLiveHydrate?.();
+      if(state.user?.id!==account)return null;
+      if(fast?.channels?.length){
+        // Live TV is usable first; VOD/provider metadata can arrive later.
+        v7ScheduleFullCatalogue(account);
+        return fast;
+      }
+      // The fast endpoint might be unavailable on an older backend.
+      return await v7RefreshFullCatalogue(account);
+    }finally{V7_HYDRATE_PENDING=null}
   })();
   return V7_HYDRATE_PENDING;
 }
@@ -396,7 +432,15 @@ function v7ChannelQuarantined(x){
   const checked=Date.parse(x?.lastAvailabilityCheck||0)||0;
   return !!checked && Date.now()-checked<30*60000;
 }
+let V7_SORTED_CHANNELS_CACHE={channels:null,history:'',territory:'',at:0,items:null};
 filteredChannels=function(){
+  // Repeated guide refreshes and continuous scanning must not re-sort the
+  // entire catalogue for each query, scan tick and remote button.
+  const historyKey=(state.history||[]).slice(0,30).join('|');
+  const now=Date.now(),cache=V7_SORTED_CHANNELS_CACHE;
+  if(cache.channels===state.channels&&cache.history===historyKey&&
+      cache.territory===state.territory&&now-cache.at<10000&&cache.items)
+    return cache.items;
   const officialByKey=new Map(V5_OFFICIAL_CHANNELS.map(x=>[v7ChannelNameKey(x),x]));
   const bulk=state.channels
     // Keep unavailable entries searchable and manually retryable. The default
@@ -472,10 +516,13 @@ filteredChannels=function(){
     if(recent>=0)score+=Math.max(40,360-recent*20);
     return score;
   };
-  return unique
+  const items=unique
     .map((x,i)=>({x,i,p:popularityScore(x)}))
     .sort((a,b)=>b.p-a.p||String(a.x.name||'').localeCompare(String(b.x.name||''))||a.i-b.i)
     .map(v=>v.x);
+  V7_SORTED_CHANNELS_CACHE={channels:state.channels,history:historyKey,
+    territory:state.territory,at:now,items};
+  return items;
 };
 
 function v7CatalogueSummary(){
