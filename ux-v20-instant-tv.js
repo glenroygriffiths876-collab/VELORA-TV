@@ -83,6 +83,8 @@
   const oldRender=renderLive;
   renderLive=function(){
     oldRender();
+    // The page is recreated on view changes; never retain a hidden old filter.
+    query='';group='All';shown=PAGE;
     panel();
     render();
   };

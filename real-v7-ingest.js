@@ -11,7 +11,7 @@ function v7Api(path){
 }
 async function v7Request(path,options={}){
   const token=localStorage.getItem('velora_auth_token')||'';
-  const publicRead=(!options.method||options.method==='GET')&&(path==='/api/catalogue'||path==='/api/discovery');
+  const publicRead=(!options.method||options.method==='GET')&&(path==='/api/catalogue'||path==='/api/discovery'||path==='/api/live/lineup');
   const headers=publicRead?{accept:'application/json'}:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})};
   const r=await fetch(v7Api(path),{...options,headers:{...headers,...(options.headers||{})}});
   const ct=r.headers.get('content-type')||'';

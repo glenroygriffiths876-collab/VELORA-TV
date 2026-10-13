@@ -130,9 +130,12 @@ test('public startup reads avoid auth preflight while private requests retain au
  const requests=[];const ctx={localStorage:{getItem:()=> 'token'},v7Api:x=>x,fetch:async(url,opts)=>{
  requests.push({url,...opts});return {ok:true,headers:{get:()=> 'application/json'},json:async()=>({ok:true})}}};
  vm.createContext(ctx);vm.runInContext(between(client,'async function v7Request','function v7StatusBadge'),ctx);
- await ctx.v7Request('/api/catalogue');await ctx.v7Request('/api/discovery');await ctx.v7Request('/api/private');
+ await ctx.v7Request('/api/catalogue');await ctx.v7Request('/api/discovery');
+ await ctx.v7Request('/api/live/lineup');await ctx.v7Request('/api/private');
  assert.equal(requests[0].headers.authorization,undefined);assert.equal(requests[1].headers['content-type'],undefined);
- assert.equal(requests[2].headers.authorization,'Bearer token');
+ assert.equal(requests[2].headers.authorization,undefined);
+ assert.equal(requests[2].headers['content-type'],undefined);
+ assert.equal(requests[3].headers.authorization,'Bearer token');
 });
 test('fresh successful alternate is tried before dead primary without dropping direct device URLs',()=>{
  const ctx={v7MediaUrl:u=>u};vm.createContext(ctx);vm.runInContext(between(client,'function v7LiveCandidates','async function v7ResolveCandidates'),ctx);
