@@ -311,7 +311,9 @@ window.veloraSharedPool=new Map();
 function v7ApplyDiscovery(d){
   if(!state.user||!Array.isArray(d.channels))return;
   window.veloraSharedPool=new Map((Array.isArray(d.sharedVerified)?d.sharedVerified:[])
-    .filter(x=>x&&typeof x.id==='string'&&Number.isInteger(x.sourceIndex))
+    .filter(x=>x&&typeof x.id==='string'&&Number.isInteger(x.sourceIndex)&&
+      x.sourceIndex>=0&&x.sourceIndex<64&&Number.isFinite(Date.parse(x.lastVerifiedAt))&&
+      Date.now()-Date.parse(x.lastVerifiedAt)>=0&&Date.now()-Date.parse(x.lastVerifiedAt)<7*24*3600000)
     .map(x=>[x.id,x]));
   window.veloraDiscoveryHints=new Map(d.channels.map(c=>[c.id,Date.now()]));
   const merged=new Map((state.channels||[]).map(c=>[c.id,c]));
@@ -769,7 +771,7 @@ selectChannel=async function(id,autoplay=true){
   const urls=v7LiveCandidates(c);
   if(urls.length){
     const hint=window.veloraSharedPool?.get(c.id);
-    const i=Number(hint?.sourceIndex);
+    const i=hint?.sourceIndex;
     if(hint&&Number.isInteger(i)&&i>=0&&i<urls.length){
       const predicted=urls[i];
       return v7PlayLiveDirect(c,[predicted,...urls.filter((_,j)=>j!==i)],autoplay,0,token);

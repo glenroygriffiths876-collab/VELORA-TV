@@ -184,3 +184,15 @@ test('English A&E prioritizes browser conversion without relabeling regional edi
  assert.equal(ctx.v7LiveCandidates({name:'A&E (720p)',url:'raw'})[0],'/api/public/compatible/ae/index.m3u8');
  assert.deepEqual(Array.from(ctx.v7LiveCandidates({name:'A&E Latin America (1080p)',url:'regional'})),['regional']);
 });
+
+test('shared discovery with historical hints does not alter a selected channel',()=>{
+ const selected={id:'chosen'},ctx={state:{user:{id:1},currentChannel:selected,channels:[{id:'old'}],catalog:[],providers:[]},
+ document:{hidden:false},setInterval(){},v7ApplySnapshot(d){Object.assign(ctx.state,d)}};
+ ctx.window=ctx;vm.createContext(ctx);
+ vm.runInContext(between(client,'let V7_DISCOVERY_PENDING','let V7_HYDRATE_PENDING'),ctx);
+ const now=new Date().toISOString();
+ ctx.v7ApplyDiscovery({channels:[{id:'shared',url:'x.m3u8'}],
+   sharedVerified:[{id:'shared',sourceIndex:0,lastVerifiedAt:now,recent:false,viewers:1}]});
+ assert.equal(ctx.veloraSharedPool.get('shared').recent,false);
+ assert.equal(ctx.state.currentChannel,selected);
+});
