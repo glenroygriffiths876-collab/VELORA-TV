@@ -64,6 +64,7 @@ function v7ApplySnapshot(d,{persistSnapshot=true,background=false}={}){
     sources:(x.sources||[]).map(src=>({...src,url:v7MediaUrl(src.url),sourceId:src.sourceId||src.providerId,sourceName:src.sourceName||src.providerName}))
   }));
   if(persistSnapshot)persist();
+  window.veloraInstantGuide?.refresh?.();
   // A background catalogue refresh must not destroy/restart the current video.
   if(document.getElementById('inlineLive')&&document.getElementById('view-live')?.classList.contains('active')){
     drawChannelList(document.getElementById('channelSearch')?.value||'');
@@ -331,15 +332,43 @@ window.v7RefreshDiscovery=function(){
 };
 setInterval(()=>window.v7RefreshDiscovery(),30000);
 
+let V7_FAST_LINEUP_PENDING=null;
+let V7_FULL_CATALOGUE_READY=false;
+window.v7FastLiveHydrate=function(){
+  if(!state.user||V7_FULL_CATALOGUE_READY)return Promise.resolve(null);
+  if(V7_FAST_LINEUP_PENDING)return V7_FAST_LINEUP_PENDING;
+  const account=state.user.id;
+  const ac=new AbortController();
+  const timeout=setTimeout(()=>ac.abort(),8000);
+  V7_FAST_LINEUP_PENDING=v7Request('/api/live/lineup',{headers:{},signal:ac.signal})
+    .then(d=>{
+      if(!state.user||state.user.id!==account||V7_FULL_CATALOGUE_READY||
+        !Array.isArray(d.channels)||!d.channels.length)return null;
+      v7ApplySnapshot({
+        channels:d.channels,providers:state.providers||[],catalog:state.catalog||[]
+      },{persistSnapshot:false,background:true});
+      window.veloraInstantGuide?.refresh?.();
+      return d;
+    })
+    .catch(()=>null)
+    .finally(()=>{clearTimeout(timeout);V7_FAST_LINEUP_PENDING=null});
+  return V7_FAST_LINEUP_PENDING;
+};
 let V7_HYDRATE_PENDING=null;
 function v7AutoHydrate(){
   if(!state.user)return Promise.resolve(null);
   if(V7_HYDRATE_PENDING)return V7_HYDRATE_PENDING;
-  if(typeof window!=='undefined')window.v7RefreshDiscovery?.();
+  if(typeof window!=='undefined'){
+    window.v7FastLiveHydrate?.();
+    window.v7RefreshDiscovery?.();
+  }
   V7_HYDRATE_PENDING=(async()=>{
     try{
       const d=await v7Request('/api/catalogue',{headers:{}});
-      if(state.user&&((d.stats?.channels||0)>0||(d.stats?.vod||0)>0))v7ApplySnapshot(d);
+      if(state.user&&((d.stats?.channels||0)>0||(d.stats?.vod||0)>0)){
+        V7_FULL_CATALOGUE_READY=true;
+        v7ApplySnapshot(d);
+      }
       return d;
     }catch(e){console.warn('Velora backend catalogue unavailable',e)}
     finally{V7_HYDRATE_PENDING=null}
