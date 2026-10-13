@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {createCompatibleFeed} from './compatible-feed.mjs';
+import {recordSharedVideo,sharedVideoSnapshot} from './shared-video-pool.mjs';
 import { gzip } from 'node:zlib';
 import { promisify } from 'node:util';
 const gzipAsync=promisify(gzip);
@@ -435,6 +436,7 @@ const emptyDB=()=>({
   catalog:[],
   epg:{},
   health:{},
+  sharedVideoPool:{},
   stats:{syncs:0,lastSync:null}
 });
 
@@ -654,16 +656,19 @@ function publicSnapshot(){
 }
 // Shared server hints are transport checks, never device-video verification.
 function discoverySnapshot(now=Date.now()){
+  const community=sharedVideoSnapshot(db,now);
+  const sharedIds=new Set(community.map(x=>x.id));
   const fresh=s=>s.health==='up'&&now-(Date.parse(s.lastChecked)||0)<20*60000;
-  const candidates=db.channels.filter(c=>c.id==='jm_tvj_direct'||(c.sources||[]).some(fresh));
+  const candidates=db.channels.filter(c=>c.id==='jm_tvj_direct'||sharedIds.has(c.id)||(c.sources||[]).some(fresh));
   candidates.sort((a,b)=>{
     if(a.id==='jm_tvj_direct')return -1;if(b.id==='jm_tvj_direct')return 1;
-    return (Date.parse(b.lastPlaybackSuccessAt)||0)-(Date.parse(a.lastPlaybackSuccessAt)||0)||
+    return Number(sharedIds.has(b.id))-Number(sharedIds.has(a.id))||
+      (Date.parse(b.lastPlaybackSuccessAt)||0)-(Date.parse(a.lastPlaybackSuccessAt)||0)||
       Math.min(...(a.sources||[]).filter(fresh).map(s=>Number(s.latencyMs)||10000))-
       Math.min(...(b.sources||[]).filter(fresh).map(s=>Number(s.latencyMs)||10000));
   });
   return {updatedAt:db.updatedAt,checkedAt:new Date(now).toISOString(),kind:'transport-hints',
-    totalCandidates:candidates.length,channels:candidates.slice(0,256).map(c=>({...c,
+    sharedVerified:community,totalCandidates:candidates.length,channels:candidates.slice(0,256).map(c=>({...c,
       sources:[...(c.sources||[])].sort((a,b)=>Number(fresh(b))-Number(fresh(a)))}))};
 }
 
@@ -1438,6 +1443,22 @@ async function api(req,res){
       });
     }
     if(body.ok===true){
+      // Only a claimed decoded frame for a known public source can improve
+      // cross-profile discovery; a successful HTTP request never enters it.
+      const reason=String(body.reason||'');
+      const claimed=String(body.url||'');
+      const allowed=[ch.url,ch.upstreamUrl,...(ch.clientUrls||[]),...(ch.sources||[]).flatMap(s=>[s.url,s.upstreamUrl])].filter(Boolean);
+      if(/^a\\s*&\\s*e(?:\\s*\\([^)]*\\))?$/i.test(ch.name||''))allowed.push('/api/public/compatible/ae/index.m3u8');
+      const sourceRecognized=claimed&&allowed.some(u=>canonicalPlaybackReportUrl(u,ch)===target);
+      if(sourceRecognized){
+        const identity=crypto.createHmac('sha256',MASTER_KEY||PUBLIC_RELAY_KEY)
+          .update(String(user.id||'')).digest('hex').slice(0,24);
+        recordSharedVideo(db,ch,{
+          viewerKey:identity,
+          sourceIndex:Number(body.sourceIndex),
+          reason
+        });
+      }
       ch.lastPlaybackSuccessAt=new Date().toISOString();
       ch.playbackSuccesses=Number(ch.playbackSuccesses||0)+1;
       ch.consecutivePlaybackFailures=0;

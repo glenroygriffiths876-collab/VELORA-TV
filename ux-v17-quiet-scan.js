@@ -279,6 +279,7 @@
     const failed=Date.parse(c.lastPlaybackFailureAt||0)||0;
     const hint=window.veloraDiscoveryHints?.get(c.id)||0;
     if(Date.now()-hint<90000)return 500000;
+    if(window.veloraSharedPool?.has(c.id))return 750000;
     if(played>failed&&Date.now()-played<24*3600000)return 100000;
     if(c.availability==='up')return 4000;
     if((c.sources||[]).some(s=>s.health==='up'))return 2000;
@@ -348,7 +349,13 @@
     const all=v7LiveCandidates(c);
     const offset=sourceOffsets.get(c.id)||0;
     // Rotate alternatives across rounds rather than permanently ignoring #3+.
-    const urls=all.slice(offset).concat(all.slice(0,offset)).slice(0,2);
+    let urls=all.slice(offset).concat(all.slice(0,offset)).slice(0,2);
+    const hint=window.veloraSharedPool?.get(c.id);
+    const index=Number(hint?.sourceIndex);
+    if(hint&&Number.isInteger(index)&&index>=0&&index<all.length){
+      const preferred=all[index];
+      urls=[preferred,...urls.filter(x=>x!==preferred)].slice(0,2);
+    }
     sourceOffsets.set(c.id,(offset+urls.length)%Math.max(1,all.length));
     let winningUrl='',result='error';
     for(const url of urls) {
@@ -363,7 +370,10 @@
     }
     checkedInSession++;
     if(winningUrl){
-      consecutiveFailures=0;recoveryUntil=0;mark(c,true,winningUrl);
+      consecutiveFailures=0;recoveryUntil=0;
+      // Send true decoded-frame checks to the shared server pool. This also
+      // remembers locally through the established report wrapper.
+      v7ReportPlayback(c,winningUrl,true,'background-video-frame');
     }else{
       consecutiveFailures++;
       // A background timeout is inconclusive; retain previous verified entries.
@@ -474,7 +484,7 @@
     ids:()=>readyList().map(c=>c.id),
     count:()=>readyList().length,
     scan:()=>quietFindMore(true),
-    scanStatus:()=>({verified:readyList().length,checked:checkedInSession,
+    scanStatus:()=>({verified:readyList().length,shared:window.veloraSharedPool?.size||0,checked:checkedInSession,
       scanning,cycles,successful:successfulInSession,lastAttemptAt,
       lastNewChannelAt,continuous:true,paused:document.hidden,
       offline:navigator.onLine===false,recovering:Date.now()<recoveryUntil,

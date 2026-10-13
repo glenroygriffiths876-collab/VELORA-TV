@@ -307,8 +307,12 @@ drawGuide=function(){
 // Small shared shortlist arrives independently of the complete searchable catalogue.
 let V7_DISCOVERY_PENDING=null;
 window.veloraDiscoveryHints=new Map();
+window.veloraSharedPool=new Map();
 function v7ApplyDiscovery(d){
   if(!state.user||!Array.isArray(d.channels))return;
+  window.veloraSharedPool=new Map((Array.isArray(d.sharedVerified)?d.sharedVerified:[])
+    .filter(x=>x&&typeof x.id==='string'&&Number.isInteger(x.sourceIndex))
+    .map(x=>[x.id,x]));
   window.veloraDiscoveryHints=new Map(d.channels.map(c=>[c.id,Date.now()]));
   const merged=new Map((state.channels||[]).map(c=>[c.id,c]));
   for(const c of d.channels)merged.set(c.id,c);
@@ -565,9 +569,13 @@ function v7KeepSearching(c,token=V7_SELECTION_TOKEN){
 const V7_NATIVE_ATTEMPTS=new Set();
 function v7ReportPlayback(c,url,ok,reason='',final=false){
   if(!c?.id)return;
+  const candidates=v7LiveCandidates(c);
+  const selected=url||c.url||'';
+  const sourceIndex=candidates.indexOf(selected);
   v7Request('/api/channel/'+encodeURIComponent(c.id)+'/playback-report',{
     method:'POST',
-    body:JSON.stringify({url:url||c.url||'',ok:!!ok,reason:String(reason||'').slice(0,120),final:!!final})
+    body:JSON.stringify({url:selected,ok:!!ok,reason:String(reason||'').slice(0,120),final:!!final,
+      sourceIndex:sourceIndex>=0?sourceIndex:null})
   }).catch(()=>{});
 }
 function v7NativeAvailable(){
@@ -759,7 +767,15 @@ selectChannel=async function(id,autoplay=true){
   const ready=window.veloraFastLiveUrls?.(c);
   if(ready?.length)return v7PlayLiveDirect(c,ready,autoplay,0,token);
   const urls=v7LiveCandidates(c);
-  if(urls.length)return v7PlayLiveDirect(c,urls,autoplay,0,token);
+  if(urls.length){
+    const hint=window.veloraSharedPool?.get(c.id);
+    const i=Number(hint?.sourceIndex);
+    if(hint&&Number.isInteger(i)&&i>=0&&i<urls.length){
+      const predicted=urls[i];
+      return v7PlayLiveDirect(c,[predicted,...urls.filter((_,j)=>j!==i)],autoplay,0,token);
+    }
+    return v7PlayLiveDirect(c,urls,autoplay,0,token);
+  }
   if(v7IsPublicDirectoryItem(c))return v7RecoverLiveSources(c,[],autoplay,token);
 
   if(c.embedUrl){

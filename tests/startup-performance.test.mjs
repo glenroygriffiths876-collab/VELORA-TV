@@ -93,11 +93,12 @@ test('first catalogue upgrades the selected placeholder only, preserving channel
 test('shared discovery excludes stale/down hints and puts fresh source first without declaring video',()=>{
  const server=fs.readFileSync('server.mjs','utf8'),now=Date.now();
  const fresh={url:'good',health:'up',lastChecked:new Date(now).toISOString(),latencyMs:100};
- const ctx={db:{channels:[{id:'jm_tvj_direct'},{id:'good',sources:[{url:'bad',health:'down'},fresh]},
+ const ctx={sharedVideoSnapshot:()=>[],db:{channels:[{id:'jm_tvj_direct'},{id:'good',sources:[{url:'bad',health:'down'},fresh]},
  {id:'stale',sources:[{...fresh,lastChecked:new Date(now-21*60000).toISOString()}]},
  {id:'bad',sources:[{health:'down'}]}]}};
  vm.createContext(ctx);vm.runInContext(between(server,'function discoverySnapshot','function computeStats'),ctx);
  const d=ctx.discoverySnapshot(now);assert.deepEqual(Array.from(d.channels,c=>c.id),['jm_tvj_direct','good']);
+ assert.equal(d.sharedVerified.length,0);
  assert.equal(d.channels[1].sources[0].url,'good');assert.equal(d.kind,'transport-hints');
  assert.equal(d.channels[1].videoVerified,undefined);
 });
@@ -106,9 +107,10 @@ test('shortlist merges without dropping search catalogue or changing current sel
  document:{hidden:false},setInterval(){},v7ApplySnapshot(d){Object.assign(ctx.state,d)}};
  ctx.window=ctx;vm.createContext(ctx);
  vm.runInContext(between(client,'let V7_DISCOVERY_PENDING','let V7_HYDRATE_PENDING'),ctx);
- ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}]});
+ ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}],sharedVerified:[{id:'new',sourceIndex:0,viewers:2}]});
  assert.deepEqual(Array.from(ctx.state.channels,c=>c.id),['existing','new']);assert.equal(ctx.state.currentChannel,selected);
  assert.equal(ctx.state.catalog[0].id,'movie');assert.ok(ctx.veloraDiscoveryHints.has('new'));
+ assert.equal(ctx.veloraSharedPool.get('new').viewers,2);
  ctx.state.user=null;ctx.v7ApplyDiscovery({channels:[{id:'after-logout'}]});assert.equal(ctx.state.channels.length,2);
 });
 test('public startup reads avoid auth preflight while private requests retain authorization',async()=>{
