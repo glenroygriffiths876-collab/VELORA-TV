@@ -84,14 +84,71 @@ test('duplicate relay routes are tried once while distinct sources and Jamaica d
 });
 
 
-test('late sign-in hydrates catalogue once even when startup timer also fires',async()=>{
- let resolve,calls=0,applied=0;const ctx={state:{user:null},Promise,console,
- v7Request:()=>{calls++;return new Promise(r=>resolve=r)},v7ApplySnapshot:()=>applied++};vm.createContext(ctx);
- vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate'),ctx);
- await ctx.v7AutoHydrate();assert.equal(calls,0);
- ctx.state.user={id:'tester'};const first=ctx.v7AutoHydrate(),second=ctx.v7AutoHydrate();
- assert.equal(first,second);assert.equal(calls,1);resolve({stats:{channels:1}});await first;assert.equal(applied,1);
- const app=fs.readFileSync('app.js','utf8');assert.ok(between(app,'window.veloraEnterApp=function','window.veloraExitApp').includes('window.v7AutoHydrate?.()'));
+test('late sign-in loads lightweight Live immediately and postpones the full catalogue',async()=>{
+ let resolve,calls=[],applied=0,full=0,timer=null;
+ const ctx={state:{user:null},Promise,console,Date,
+  v7Request:path=>{calls.push(path);return new Promise(r=>resolve=r)},
+  v7ApplyInstantLive:()=>{applied++;return true},
+  v7ApplySnapshot:()=>{full++},
+  setTimeout:(fn,delay)=>{if(delay===6000)timer=fn;return 1},
+  clearTimeout(){}};
+ ctx.window=ctx;vm.createContext(ctx);
+ vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate,900)'),ctx);
+ await ctx.v7AutoHydrate();assert.equal(calls.length,0);
+ ctx.state.user={id:'tester'};
+ const first=ctx.v7AutoHydrate(),second=ctx.v7AutoHydrate();
+ assert.equal(first,second);assert.deepEqual(calls,['/api/live/instant']);
+ resolve({channels:[{id:'tvj',url:'tvj.m3u8'}]});await first;
+ assert.equal(applied,1);assert.equal(full,0);
+ assert.equal(typeof timer,'function');
+ timer();assert.deepEqual(calls,['/api/live/instant','/api/catalogue']);
+ resolve({stats:{channels:1}});await Promise.resolve();await Promise.resolve();
+ assert.equal(full,1);
+ const app=fs.readFileSync('app.js','utf8');
+ assert.ok(between(app,'window.veloraEnterApp=function','window.veloraExitApp').includes('window.v7AutoHydrate?.()'));
+});
+test('instant Live update keeps movies/series, and never rerenders a playing channel',()=>{
+ const playing={id:'chosen'},catalog=[{id:'movie'}],calls=[];
+ const ctx={state:{user:{id:'tester'},currentChannel:playing,providers:[],catalog,channels:[]},
+   v7ApplySnapshot:(d,options)=>calls.push({d,options}),
+   document:{getElementById:()=>({classList:{contains:()=>false}})},Date};
+ ctx.window=ctx;vm.createContext(ctx);
+ vm.runInContext(between(client,'function v7AcceptSharedHints','function v7ApplyDiscovery'),ctx);
+ assert.equal(ctx.v7ApplyInstantLive({channels:[{id:'tvj'}],sharedVerified:[]}),true);
+ assert.equal(calls.length,1);
+ assert.equal(calls[0].d.catalog,catalog);
+ assert.equal(calls[0].options.background,true);
+ assert.equal(calls[0].options.persistSnapshot,false);
+ assert.equal(ctx.state.currentChannel,playing);
+});
+test('instant API contains the whole Live directory without downloading VOD',()=>{
+ const server=fs.readFileSync('server.mjs','utf8');
+ const ch={id:'tvj',name:'TVJ',url:'tvj.m3u8',clientUrls:['one','two'],
+   sources:[{url:'first',priority:2,privateToken:'must-not-appear'},
+     {url:'second',priority:1}],secret:'must-not-appear'};
+ const ctx={db:{updatedAt:'2026-10-13',channels:[ch],catalog:[{id:'private-movie'}]},
+   sharedVideoSnapshot:()=>[{id:'tvj',sourceIndex:0,recent:true}]};
+ vm.createContext(ctx);
+ vm.runInContext(between(server,'function instantLiveSnapshot','// Shared server hints'),ctx);
+ const d=ctx.instantLiveSnapshot();
+ assert.equal(d.kind,'instant-live');
+ assert.equal(d.stats.channels,1);
+ assert.deepEqual(Array.from(d.channels[0].sources,s=>s.url),['first','second']);
+ assert.equal(d.catalog,undefined);
+ assert.equal(JSON.stringify(d).includes('private-movie'),false);
+ assert.equal(JSON.stringify(d).includes('must-not-appear'),false);
+});
+test('opening channel Search immediately exposes all listings but remote browse stays verified-only',()=>{
+ const rows=[{id:'tvj',name:'TVJ',group:'Jamaica'},{id:'espn',name:'ESPN',group:'Sports'}];
+ let searching=false;
+ const ctx={state:{currentFilter:'All'},filteredChannels:()=>rows,
+   v7DefaultBrowseChannels:()=>rows.slice(0,1),
+   document:{getElementById:()=>({classList:{contains:()=>searching}})}};
+ vm.createContext(ctx);
+ vm.runInContext(between(client,'function v7SearchText','drawChannelList=function'),ctx);
+ assert.deepEqual(Array.from(ctx.v7LiveMatches(''),x=>x.id),['tvj']);
+ searching=true;
+ assert.deepEqual(Array.from(ctx.v7LiveMatches(''),x=>x.id),['tvj','espn']);
 });
 test('first catalogue upgrades the selected placeholder only, preserving channel identity',()=>{
  const selected={id:'official-tvj',name:'TVJ'};const tuned=[];
@@ -206,4 +263,20 @@ test('shared channel history remains separate from genuinely confirmed working r
  assert.match(script,/only locally confirmed video enters Working/i);
  assert.match(scan,/const HISTORY_MS=7\*24\*60\*60\*1000/);
  assert.match(scan,/return Date\.now\(\)-Number\(stored\.at\|\|0\)<FRESH_MS/);
+});
+
+test('channel sort stays cached during frequent scanning and refreshes with a new catalogue',()=>{
+ const code=fs.readFileSync('real-v7-ingest.js','utf8');
+ const ctx={state:{channels:[{id:'tvj',name:'TVJ'},{id:'espn',name:'ESPN'}],
+     history:[],territory:'JM'},V5_OFFICIAL_CHANNELS:[],Date,
+   v7IsPublicDirectoryItem:()=>true,rightsActive:()=>true,
+   v7ChannelNameKey:x=>x.name.toLowerCase()};
+ vm.createContext(ctx);
+ vm.runInContext(between(code,'let V7_SORTED_CHANNELS_CACHE','function v7CatalogueSummary'),ctx);
+ const a=ctx.filteredChannels(),b=ctx.filteredChannels();
+ assert.equal(a,b,'the same catalogue should not be re-sorted for each probe');
+ assert.equal(a[0].id,'tvj');
+ ctx.state.channels=[...ctx.state.channels,{id:'other',name:'News'}];
+ const c=ctx.filteredChannels();
+ assert.notEqual(c,a);assert.equal(c.length,3);
 });
