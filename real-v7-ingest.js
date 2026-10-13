@@ -11,7 +11,8 @@ function v7Api(path){
 }
 async function v7Request(path,options={}){
   const token=localStorage.getItem('velora_auth_token')||'';
-  const publicRead=(!options.method||options.method==='GET')&&(path==='/api/catalogue'||path==='/api/discovery');
+  const publicRead=(!options.method||options.method==='GET')&&
+    (path==='/api/catalogue'||path==='/api/discovery'||path==='/api/live/instant');
   const headers=publicRead?{accept:'application/json'}:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})};
   const r=await fetch(v7Api(path),{...options,headers:{...headers,...(options.headers||{})}});
   const ct=r.headers.get('content-type')||'';
@@ -279,7 +280,11 @@ function v7LiveMatches(q=''){
   const grp=state.currentFilter||'All',needle=v7SearchText(q);
   // Searching is intentional discovery, so search can reveal the Jamaican
   // channels hidden from the normal browse list.
-  const base=needle?filteredChannels():v7DefaultBrowseChannels();
+  // Opening Search must show the full channel directory immediately.
+  // The separate Working guide and CH+/- remain device-video-confirmed only.
+  const browsing=typeof document!=='undefined'&&
+    !!document.getElementById('veloraLiveSearchShell')?.classList?.contains('searching');
+  const base=(needle||browsing)?filteredChannels():v7DefaultBrowseChannels();
   return base.filter(c=>(grp==='All'||c.group===grp)&&(!needle||v7SearchText(c.name+' '+(c.group||'')+' '+(c.now||'')+' '+(c.sourceName||'')).includes(needle)));
 }
 drawChannelList=function(q=''){
@@ -308,13 +313,30 @@ drawGuide=function(){
 let V7_DISCOVERY_PENDING=null;
 window.veloraDiscoveryHints=new Map();
 window.veloraSharedPool=new Map();
-function v7ApplyDiscovery(d){
-  if(!state.user||!Array.isArray(d.channels))return;
-  window.veloraSharedPool=new Map((Array.isArray(d.sharedVerified)?d.sharedVerified:[])
+function v7AcceptSharedHints(d){
+  if(!Array.isArray(d?.sharedVerified))return;
+  window.veloraSharedPool=new Map(d.sharedVerified
     .filter(x=>x&&typeof x.id==='string'&&Number.isInteger(x.sourceIndex)&&
       x.sourceIndex>=0&&x.sourceIndex<64&&Number.isFinite(Date.parse(x.lastVerifiedAt))&&
       Date.now()-Date.parse(x.lastVerifiedAt)>=0&&Date.now()-Date.parse(x.lastVerifiedAt)<7*24*3600000)
     .map(x=>[x.id,x]));
+}
+function v7ApplyInstantLive(d){
+  if(!state.user||!Array.isArray(d?.channels)||!d.channels.length)return false;
+  v7AcceptSharedHints(d);
+  // Leave Movies/Series and the currently selected player alone.
+  v7ApplySnapshot({providers:state.providers||[],channels:d.channels,catalog:state.catalog||[]},
+    {persistSnapshot:false,background:true});
+  // Existing Live page can remain mounted while catalogue refreshes.
+  if(document.getElementById('view-live')?.classList.contains('active')){
+    drawChannelList(document.getElementById('channelSearch')?.value||'');
+    window.veloraVerifiedGuide?.refresh?.();
+  }
+  return true;
+}
+function v7ApplyDiscovery(d){
+  if(!state.user||!Array.isArray(d.channels))return;
+  v7AcceptSharedHints(d);
   window.veloraDiscoveryHints=new Map(d.channels.map(c=>[c.id,Date.now()]));
   const merged=new Map((state.channels||[]).map(c=>[c.id,c]));
   for(const c of d.channels)merged.set(c.id,c);
@@ -332,17 +354,52 @@ window.v7RefreshDiscovery=function(){
 setInterval(()=>window.v7RefreshDiscovery(),30000);
 
 let V7_HYDRATE_PENDING=null;
+let V7_FULL_CATALOGUE_TIMER=null;
+let V7_LAST_FULL_REFRESH=0;
+function v7RefreshCompleteCatalogue(){
+  if(!state.user)return;
+  // Heavy VOD and provider metadata should not delay the first Live TV picture.
+  if(Date.now()-V7_LAST_FULL_REFRESH<2*60*1000)return;
+  V7_LAST_FULL_REFRESH=Date.now();
+  const signedInId=state.user.id;
+  v7Request('/api/catalogue',{headers:{}})
+    .then(d=>{
+      if(state.user?.id!==signedInId)return;
+      if((d.stats?.channels||0)>0||(d.stats?.vod||0)>0)
+        v7ApplySnapshot(d,{persistSnapshot:true,background:true});
+    }).catch(e=>{
+      V7_LAST_FULL_REFRESH=0;
+      console.warn('Velora full catalogue refresh postponed',e);
+    });
+}
+function v7ScheduleCompleteCatalogue(){
+  clearTimeout(V7_FULL_CATALOGUE_TIMER);
+  V7_FULL_CATALOGUE_TIMER=setTimeout(v7RefreshCompleteCatalogue,6000);
+}
 function v7AutoHydrate(){
   if(!state.user)return Promise.resolve(null);
   if(V7_HYDRATE_PENDING)return V7_HYDRATE_PENDING;
+  // Useful shared source hints are independent; they must not hold up playback.
   if(typeof window!=='undefined')window.v7RefreshDiscovery?.();
+  const signedInId=state.user.id;
   V7_HYDRATE_PENDING=(async()=>{
     try{
-      const d=await v7Request('/api/catalogue',{headers:{}});
-      if(state.user&&((d.stats?.channels||0)>0||(d.stats?.vod||0)>0))v7ApplySnapshot(d);
+      const d=await v7Request('/api/live/instant',{headers:{}});
+      if(state.user?.id!==signedInId)return null;
+      if(!v7ApplyInstantLive(d))throw new Error('Instant lineup unavailable');
+      v7ScheduleCompleteCatalogue();
       return d;
-    }catch(e){console.warn('Velora backend catalogue unavailable',e)}
-    finally{V7_HYDRATE_PENDING=null}
+    }catch(e){
+      console.warn('Instant Live catalogue unavailable; using full catalogue fallback',e);
+      try{
+        const d=await v7Request('/api/catalogue',{headers:{}});
+        if(state.user?.id===signedInId&&((d.stats?.channels||0)>0||(d.stats?.vod||0)>0)){
+          V7_LAST_FULL_REFRESH=Date.now();
+          v7ApplySnapshot(d,{persistSnapshot:true,background:true});
+        }
+        return d;
+      }catch(err){console.warn('Velora backend catalogue unavailable',err);return null}
+    }finally{V7_HYDRATE_PENDING=null}
   })();
   return V7_HYDRATE_PENDING;
 }
@@ -476,7 +533,8 @@ document.addEventListener('click',e=>{
     state.currentFilter='All';
     const input=document.getElementById('channelSearch');if(input)input.value='';
     document.querySelectorAll('.channelCats .chip').forEach(b=>b.classList.toggle('active',b.dataset.group==='All'));
-    drawChannelList('');
+    window.veloraLiveV15?.openSearch?.();
+    document.getElementById('channelSearch')?.focus?.();
     document.getElementById('channelList')?.scrollIntoView({behavior:'smooth',block:'start'});
   }
 },true);

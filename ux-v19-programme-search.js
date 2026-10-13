@@ -146,7 +146,7 @@
  drawChannelList=function(q='') {
    const listEl=document.getElementById('channelList');
    if(!listEl)return;
-   const all=v7LiveMatches(q),items=all.slice(0,250);
+   const all=v7LiveMatches(q),items=all.slice(0,120);
    const verified=new Set(window.veloraVerifiedChannels?.ids?.()||[]);
    const html=items.map(c=>{
      const p=lookup(c,q);
@@ -161,11 +161,11 @@
        '<span class="channelNum">'+e(c.num||'')+'</span></button>';
    }).join('');
    listEl.innerHTML=html+(all.length>items.length?
-     '<p class="veloraProgrammeEmpty">Showing '+items.length+' of '+all.length+
-     ' matches. Narrow your search to see more.</p>':'');
+     '<p class="veloraProgrammeEmpty">Showing the first '+items.length+' of '+all.length+
+     ' listings. Type a channel or programme name to narrow the list.</p>':'');
    if(!items.length)listEl.innerHTML='<div class="veloraProgrammeEmpty">'+
      (norm(q).length>=2?
        'No matching channels or confirmed programme listings. Match searches need broadcaster EPG data.':
-       'No verified channels found yet.')+'</div>';
+       'Open channel search to browse the available catalogue.')+'</div>';
  };
 })();

@@ -654,6 +654,24 @@ function publicSnapshot(){
     stats:computeStats()
   };
 }
+// Instant Live: much smaller than the full movie + series + provider catalogue.
+// Do not pretest or transcode streams on this request; opening TV must be quick.
+// Preserve each channel's candidate ordering and properties needed by the tuner.
+function instantLiveSnapshot(now=Date.now()){
+  const fields=['id','num','epgId','tvgId','name','group','logo','now','short','desc',
+    'access','territory','sourceId','sourceName','priority','official','rights',
+    'url','upstreamUrl','clientUrls','watchUrl','embedUrl','availability',
+    'lastAvailabilityCheck','lastPlaybackSuccessAt','lastPlaybackFailureAt'];
+  const sourceFields=['providerId','providerName','sourceId','sourceName','url',
+    'upstreamUrl','streamId','kind','territory','priority','health','lastChecked',
+    'latencyMs','rights'];
+  const slim=(obj,keys)=>Object.fromEntries(keys.filter(k=>obj?.[k]!==undefined).map(k=>[k,obj[k]]));
+  return {updatedAt:db.updatedAt,kind:'instant-live',
+    stats:{channels:db.channels.length},
+    channels:db.channels.map(c=>({...slim(c,fields),
+      sources:(c.sources||[]).map(s=>slim(s,sourceFields))})),
+    sharedVerified:sharedVideoSnapshot(db,now)};
+}
 // Shared server hints are transport checks, never device-video verification.
 function discoverySnapshot(now=Date.now()){
   const community=sharedVideoSnapshot(db,now);
@@ -1351,6 +1369,7 @@ async function api(req,res){
   }
 
   if(req.method==='GET'&&p==='/api/system/status')return json(res,200,{ok:true,engine:'Velora Ingest V7',version:7,port:PORT,persistent:true,encryptedSecrets:!!MASTER_KEY,refreshMinutes:DEFAULT_REFRESH_MINUTES,stats:computeStats()});
+  if(req.method==='GET'&&p==='/api/live/instant')return sendCatalogue(req,res,instantLiveSnapshot());
   if(req.method==='GET'&&p==='/api/discovery')return sendCatalogue(req,res,discoverySnapshot());
   if(req.method==='GET'&&p==='/api/catalogue')return sendCatalogue(req,res,publicSnapshot());
   if(req.method==='POST'&&p==='/api/epg/programmes'){

@@ -109,7 +109,8 @@
         '<div id="veloraStandbyRows" class="veloraVerifiedRows veloraStandbyRows"></div>'+
         '<button type="button" id="veloraStandbyMore" class="veloraStandbyMore" hidden>See more</button>'+
       '</section>'+
-      '<p class="veloraCatalogueHint"><span id="veloraFullCatalogueCount">0</span> searchable channels in the catalogue. Playback availability varies.</p>';
+      '<p class="veloraCatalogueHint"><span id="veloraFullCatalogueCount">0</span> channel listings available to search. Each stream is verified on this device when selected; not all are continuously online.</p>'+
+      '<button type="button" id="veloraBrowseAllChannels" class="veloraStandbyMore">Browse all channel listings ↗</button>';
     shell.after(guide);
     update();
   };
@@ -123,6 +124,12 @@
     if(e.target?.id==='veloraVerifiedSearch')update();
   },true);
   document.addEventListener('click',e=>{
+    if(e.target?.id==='veloraBrowseAllChannels'){
+      e.preventDefault();
+      window.veloraLiveV15?.openSearch?.();
+      document.getElementById('channelSearch')?.focus?.();
+      return;
+    }
     if(e.target?.id==='veloraStandbyMore'){
       e.preventDefault();expanded=!expanded;update();return;
     }
