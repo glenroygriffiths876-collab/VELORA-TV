@@ -120,7 +120,7 @@ test('shortlist merges without dropping search catalogue or changing current sel
  document:{hidden:false},setInterval(){},v7ApplySnapshot(d){Object.assign(ctx.state,d)}};
  ctx.window=ctx;vm.createContext(ctx);
  vm.runInContext(between(client,'let V7_DISCOVERY_PENDING','let V7_HYDRATE_PENDING'),ctx);
- ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}],sharedVerified:[{id:'new',sourceIndex:0,viewers:2}]});
+ ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}],sharedVerified:[{id:'new',sourceIndex:0,viewers:2,lastVerifiedAt:new Date().toISOString(),recent:true}]});
  assert.deepEqual(Array.from(ctx.state.channels,c=>c.id),['existing','new']);assert.equal(ctx.state.currentChannel,selected);
  assert.equal(ctx.state.catalog[0].id,'movie');assert.ok(ctx.veloraDiscoveryHints.has('new'));
  assert.equal(ctx.veloraSharedPool.get('new').viewers,2);
