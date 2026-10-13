@@ -1455,7 +1455,7 @@ async function api(req,res){
           .update(String(user.id||'')).digest('hex').slice(0,24);
         recordSharedVideo(db,ch,{
           viewerKey:identity,
-          sourceIndex:Number(body.sourceIndex),
+          sourceIndex:typeof body.sourceIndex==='number'?body.sourceIndex:null,
           reason
         });
       }
