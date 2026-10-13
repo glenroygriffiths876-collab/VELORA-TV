@@ -87,6 +87,7 @@ test('duplicate relay routes are tried once while distinct sources and Jamaica d
 test('late sign-in hydrates catalogue once even when startup timer also fires',async()=>{
  let resolve,calls=0,applied=0;const ctx={state:{user:null},Promise,console,
  v7Request:()=>{calls++;return new Promise(r=>resolve=r)},v7ApplySnapshot:()=>applied++};vm.createContext(ctx);
+ vm.runInContext('let V7_FULL_CATALOGUE_READY=false;',ctx);
  vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate'),ctx);
  await ctx.v7AutoHydrate();assert.equal(calls,0);
  ctx.state.user={id:'tester'};const first=ctx.v7AutoHydrate(),second=ctx.v7AutoHydrate();
@@ -243,6 +244,7 @@ test('Instant TV starts first and defers the full catalogue until after the Live
  ctx.window=ctx;
  ctx.v7FastLiveHydrate=async()=>({channels:[{id:'tvj'}]});
  vm.createContext(ctx);
+ vm.runInContext('let V7_FULL_CATALOGUE_READY=false;',ctx);
  vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate,900)'),ctx);
  await ctx.v7AutoHydrate();
  assert.equal(calls.length,0,'large VOD endpoint must not race against instant TV');
@@ -261,6 +263,7 @@ test('a failed Instant TV endpoint falls back to the full catalogue',async()=>{
    v7ApplySnapshot:()=>{applied++}};
  ctx.window=ctx;ctx.v7FastLiveHydrate=async()=>null;
  vm.createContext(ctx);
+ vm.runInContext('let V7_FULL_CATALOGUE_READY=false;',ctx);
  vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate,900)'),ctx);
  await ctx.v7AutoHydrate();
  assert.deepEqual(calls,['/api/catalogue']);assert.equal(applied,1);
