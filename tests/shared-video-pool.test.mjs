@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {recordSharedVideo,sharedVideoSnapshot,SHARED_FRESH_MS} from '../shared-video-pool.mjs';
+import {recordSharedVideo,sharedVideoSnapshot,SHARED_FRESH_MS,SHARED_HISTORY_MS} from '../shared-video-pool.mjs';
 
 const channel=(url='https://example.test/a.m3u8')=>({id:'scifi',name:'SciFi',sourceId:'public_series',url,
   sources:[{providerId:'public_series',url}]});
@@ -24,7 +24,9 @@ test('HTTP probes and forged playback reasons never enter the shared pool; repea
 test('stale reports and changed stream fingerprints expire without poisoning new catalogue data',()=>{
   const c=channel(),db={channels:[c]},now=Date.now();
   recordSharedVideo(db,c,{viewerKey:'one',sourceIndex:0,reason:'video-frame'},now);
-  assert.equal(sharedVideoSnapshot(db,now+SHARED_FRESH_MS+1).length,0);
+  const historical=sharedVideoSnapshot(db,now+SHARED_FRESH_MS+1);
+  assert.equal(historical.length,1);assert.equal(historical[0].recent,false);
+  assert.equal(sharedVideoSnapshot(db,now+SHARED_HISTORY_MS+1).length,0);
   const changed=channel('https://example.test/replaced.m3u8');
   db.channels=[changed];
   assert.equal(sharedVideoSnapshot(db,now+1000).length,0);
@@ -36,4 +38,14 @@ test('private provider reports cannot make private sources public',()=>{
   const db={channels:[c]};
   assert.equal(recordSharedVideo(db,c,{viewerKey:'a',sourceIndex:0,reason:'video-frame'}),false);
   assert.equal(sharedVideoSnapshot(db).length,0);
+});
+
+test('shared historical channel stays searchable as a lead for a week, but recent is labelled separately',()=>{
+ const c=channel(),db={channels:[c]},now=Date.now();
+ recordSharedVideo(db,c,{viewerKey:'one',sourceIndex:0,reason:'video-frame'},now);
+ assert.equal(sharedVideoSnapshot(db,now+1000)[0].recent,true);
+ const historical=sharedVideoSnapshot(db,now+SHARED_FRESH_MS+1000)[0];
+ assert.equal(historical.recent,false);
+ assert.equal(historical.sourceIndex,0);
+ assert.equal(sharedVideoSnapshot(db,now+SHARED_HISTORY_MS+1000).length,0);
 });
