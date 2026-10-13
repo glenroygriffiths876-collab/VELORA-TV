@@ -16,6 +16,19 @@ test('channel selection begins local playback without awaiting a source search',
  const result=ctx.selectChannel(selected.id);assert.equal(started.length,1,'stream begins in same turn as selection');
  assert.equal(resolverCalls,0);await result;assert.equal(ctx.state.currentChannel.id,selected.id);
 });
+test('community video hints test the shared source first but retain all fallbacks and TVJ selection',()=>{
+ const c={id:'jm_tvj_direct',clientUrls:['slow.m3u8','known.m3u8','alternate.m3u8']};
+ const attempts=[],ctx={state:{},filteredChannels:()=>[c],V7_SELECTION_TOKEN:0,V7_SEARCH_ATTEMPTS:new Map(),
+ V7_NATIVE_ATTEMPTS:new Set(),clearTimeout(){},V7_RETRY_TIMER:null,
+ document:{getElementById(){return null}},drawChannelList(){},v7ResetInline(){},v7ShowLiveStatus(){},
+ v7LiveCandidates:x=>x.clientUrls,veloraFastLiveUrls:()=>[],
+ v7PlayLiveDirect:(_c,urls)=>attempts.push([...urls])};
+ ctx.window=ctx;ctx.veloraSharedPool=new Map([[c.id,{id:c.id,sourceIndex:1,viewers:3}]]);
+ vm.createContext(ctx);vm.runInContext(between(client,'selectChannel=async function','v5OpenChannel=function'),ctx);
+ ctx.selectChannel(c.id);
+ assert.deepEqual(attempts,[['known.m3u8','slow.m3u8','alternate.m3u8']]);
+ assert.equal(ctx.state.currentChannel.id,c.id);
+});
 test('catalogue refresh keeps the existing live player and selection',()=>{
  let rendered=0,persisted=0,refreshed=0;const playing={id:'chosen'},video={};
  const ctx={state:{currentChannel:playing},v7LiveCandidates:()=>['playing.m3u8'],v7ProviderToLocal:x=>x,v7MediaUrl:x=>x,
