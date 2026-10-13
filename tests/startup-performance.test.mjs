@@ -87,6 +87,7 @@ test('duplicate relay routes are tried once while distinct sources and Jamaica d
 test('late sign-in hydrates catalogue once even when startup timer also fires',async()=>{
  let resolve,calls=0,applied=0;const ctx={state:{user:null},Promise,console,
  v7Request:()=>{calls++;return new Promise(r=>resolve=r)},v7ApplySnapshot:()=>applied++};vm.createContext(ctx);
+ vm.runInContext('let V7_FULL_CATALOGUE_READY=false;',ctx);
  vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate'),ctx);
  await ctx.v7AutoHydrate();assert.equal(calls,0);
  ctx.state.user={id:'tester'};const first=ctx.v7AutoHydrate(),second=ctx.v7AutoHydrate();
@@ -164,7 +165,7 @@ test('Sci-Fi search accepts spacing, punctuation and SYFY while preserving full 
 });
 
 test('server quarantine does not erase a channel from the searchable catalogue',()=>{
- const start=client.indexOf('filteredChannels=function');
+ const start=client.indexOf('let V7_SORTED_CHANNELS_CACHE');
  const end=client.indexOf('\n};',start)+3;
  const ctx={state:{channels:[{id:'syfy',name:'SYFY',availability:'down',lastAvailabilityCheck:new Date().toISOString()}]},V5_OFFICIAL_CHANNELS:[],
  v7ChannelNameKey:c=>c.name, v7IsPublicDirectoryItem:()=>true,rightsActive:()=>false,
@@ -231,4 +232,52 @@ test('instant guide is a complete catalogue, not an expanded unverified Working 
  assert.match(source,/veloraVerifiedChannels\?\.ids/);
  assert.match(source,/data-channel/);
  assert.doesNotMatch(source,/window\.veloraTuneWorkingChannel\s*=/);
+});
+
+test('Instant TV starts first and defers the full catalogue until after the Live response',async()=>{
+ const calls=[],timers=[];let didReplace=0;
+ const ctx={state:{user:{id:'tester'}},Date,Promise,console,
+   setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length},
+   clearTimeout(){},
+   v7Request:async(path)=>{calls.push(path);return {stats:{channels:1},channels:[{id:'tvj'}]}},
+   v7ApplySnapshot:()=>{didReplace++}};
+ ctx.window=ctx;
+ ctx.v7FastLiveHydrate=async()=>({channels:[{id:'tvj'}]});
+ vm.createContext(ctx);
+ vm.runInContext('let V7_FULL_CATALOGUE_READY=false;',ctx);
+ vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate,900)'),ctx);
+ await ctx.v7AutoHydrate();
+ assert.equal(calls.length,0,'large VOD endpoint must not race against instant TV');
+ assert.equal(didReplace,0);
+ const later=timers.find(t=>t.ms===6500);
+ assert.ok(later,'VOD is explicitly deferred');
+ later.fn();
+ for(let i=0;i<5;i++)await Promise.resolve();
+ assert.deepEqual(calls,['/api/catalogue']);
+ assert.equal(didReplace,1);
+});
+test('a failed Instant TV endpoint falls back to the full catalogue',async()=>{
+ const calls=[];let applied=0;
+ const ctx={state:{user:{id:'tester'}},Promise,Date,console,
+   v7Request:async path=>{calls.push(path);return {stats:{channels:1}};},
+   v7ApplySnapshot:()=>{applied++}};
+ ctx.window=ctx;ctx.v7FastLiveHydrate=async()=>null;
+ vm.createContext(ctx);
+ vm.runInContext('let V7_FULL_CATALOGUE_READY=false;',ctx);
+ vm.runInContext(between(client,'let V7_HYDRATE_PENDING','setTimeout(v7AutoHydrate,900)'),ctx);
+ await ctx.v7AutoHydrate();
+ assert.deepEqual(calls,['/api/catalogue']);assert.equal(applied,1);
+});
+test('frequent Live guide refreshes reuse channel sorting; new snapshots invalidate it',()=>{
+ const script=fs.readFileSync('real-v7-ingest.js','utf8');
+ const ctx={state:{channels:[{id:'espn',name:'ESPN'},{id:'tvj',name:'TVJ'}],history:[],territory:'JM'},
+ V5_OFFICIAL_CHANNELS:[],v7IsPublicDirectoryItem:()=>true,rightsActive:()=>true,
+ v7ChannelNameKey:x=>x.name.toLowerCase(),Date};
+ vm.createContext(ctx);
+ vm.runInContext(between(script,'let V7_SORTED_CHANNELS_CACHE','function v7CatalogueSummary'),ctx);
+ const first=ctx.filteredChannels(),second=ctx.filteredChannels();
+ assert.equal(first,second);assert.equal(first[0].id,'tvj');
+ ctx.state.channels=[...ctx.state.channels,{id:'news',name:'News'}];
+ const changed=ctx.filteredChannels();
+ assert.notEqual(changed,first);assert.equal(changed.length,3);
 });
