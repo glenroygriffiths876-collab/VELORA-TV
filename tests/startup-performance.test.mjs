@@ -196,3 +196,14 @@ test('shared discovery with historical hints does not alter a selected channel',
  assert.equal(ctx.veloraSharedPool.get('shared').recent,false);
  assert.equal(ctx.state.currentChannel,selected);
 });
+
+test('shared channel history remains separate from genuinely confirmed working rows',()=>{
+ const script=fs.readFileSync('ux-v18-guide.js','utf8');
+ const scan=fs.readFileSync('ux-v17-quiet-scan.js','utf8');
+ assert.match(script,/Previously played channels/);
+ assert.match(script,/veloraStandbySection/);
+ assert.match(script,/veloraVerifiedChannels\?\.history/);
+ assert.match(script,/only locally confirmed video enters Working/i);
+ assert.match(scan,/const HISTORY_MS=7\*24\*60\*60\*1000/);
+ assert.match(scan,/return Date\.now\(\)-Number\(stored\.at\|\|0\)<FRESH_MS/);
+});
