@@ -164,7 +164,7 @@ test('Sci-Fi search accepts spacing, punctuation and SYFY while preserving full 
 });
 
 test('server quarantine does not erase a channel from the searchable catalogue',()=>{
- const start=client.indexOf('filteredChannels=function');
+ const start=client.indexOf('let V7_SORTED_CHANNELS_CACHE');
  const end=client.indexOf('\n};',start)+3;
  const ctx={state:{channels:[{id:'syfy',name:'SYFY',availability:'down',lastAvailabilityCheck:new Date().toISOString()}]},V5_OFFICIAL_CHANNELS:[],
  v7ChannelNameKey:c=>c.name, v7IsPublicDirectoryItem:()=>true,rightsActive:()=>false,

@@ -389,7 +389,7 @@ function v7AutoHydrate(){
   if(V7_HYDRATE_PENDING)return V7_HYDRATE_PENDING;
   const account=state.user.id;
   // Shared leads refresh independently and may not interrupt the picture.
-  window.v7RefreshDiscovery?.();
+  if(typeof window!=='undefined')window.v7RefreshDiscovery?.();
   V7_HYDRATE_PENDING=(async()=>{
     try{
       if(V7_FULL_CATALOGUE_READY){
@@ -398,7 +398,7 @@ function v7AutoHydrate(){
           v7ScheduleFullCatalogue(account);
         return {cached:true};
       }
-      const fast=await window.v7FastLiveHydrate?.();
+      const fast=typeof window!=='undefined'?await window.v7FastLiveHydrate?.():null;
       if(state.user?.id!==account)return null;
       if(fast?.channels?.length){
         // Live TV is usable first; VOD/provider metadata can arrive later.
