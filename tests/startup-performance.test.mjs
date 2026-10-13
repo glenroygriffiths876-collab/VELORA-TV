@@ -16,6 +16,19 @@ test('channel selection begins local playback without awaiting a source search',
  const result=ctx.selectChannel(selected.id);assert.equal(started.length,1,'stream begins in same turn as selection');
  assert.equal(resolverCalls,0);await result;assert.equal(ctx.state.currentChannel.id,selected.id);
 });
+test('community video hints test the shared source first but retain all fallbacks and TVJ selection',()=>{
+ const c={id:'jm_tvj_direct',clientUrls:['slow.m3u8','known.m3u8','alternate.m3u8']};
+ const attempts=[],ctx={state:{},filteredChannels:()=>[c],V7_SELECTION_TOKEN:0,V7_SEARCH_ATTEMPTS:new Map(),
+ V7_NATIVE_ATTEMPTS:new Set(),clearTimeout(){},V7_RETRY_TIMER:null,
+ document:{getElementById(){return null}},drawChannelList(){},v7ResetInline(){},v7ShowLiveStatus(){},
+ v7LiveCandidates:x=>x.clientUrls,veloraFastLiveUrls:()=>[],
+ v7PlayLiveDirect:(_c,urls)=>attempts.push([...urls])};
+ ctx.window=ctx;ctx.veloraSharedPool=new Map([[c.id,{id:c.id,sourceIndex:1,viewers:3}]]);
+ vm.createContext(ctx);vm.runInContext(between(client,'selectChannel=async function','v5OpenChannel=function'),ctx);
+ ctx.selectChannel(c.id);
+ assert.deepEqual(attempts,[['known.m3u8','slow.m3u8','alternate.m3u8']]);
+ assert.equal(ctx.state.currentChannel.id,c.id);
+});
 test('catalogue refresh keeps the existing live player and selection',()=>{
  let rendered=0,persisted=0,refreshed=0;const playing={id:'chosen'},video={};
  const ctx={state:{currentChannel:playing},v7LiveCandidates:()=>['playing.m3u8'],v7ProviderToLocal:x=>x,v7MediaUrl:x=>x,
@@ -93,11 +106,12 @@ test('first catalogue upgrades the selected placeholder only, preserving channel
 test('shared discovery excludes stale/down hints and puts fresh source first without declaring video',()=>{
  const server=fs.readFileSync('server.mjs','utf8'),now=Date.now();
  const fresh={url:'good',health:'up',lastChecked:new Date(now).toISOString(),latencyMs:100};
- const ctx={db:{channels:[{id:'jm_tvj_direct'},{id:'good',sources:[{url:'bad',health:'down'},fresh]},
+ const ctx={sharedVideoSnapshot:()=>[],db:{channels:[{id:'jm_tvj_direct'},{id:'good',sources:[{url:'bad',health:'down'},fresh]},
  {id:'stale',sources:[{...fresh,lastChecked:new Date(now-21*60000).toISOString()}]},
  {id:'bad',sources:[{health:'down'}]}]}};
  vm.createContext(ctx);vm.runInContext(between(server,'function discoverySnapshot','function computeStats'),ctx);
  const d=ctx.discoverySnapshot(now);assert.deepEqual(Array.from(d.channels,c=>c.id),['jm_tvj_direct','good']);
+ assert.equal(d.sharedVerified.length,0);
  assert.equal(d.channels[1].sources[0].url,'good');assert.equal(d.kind,'transport-hints');
  assert.equal(d.channels[1].videoVerified,undefined);
 });
@@ -106,9 +120,10 @@ test('shortlist merges without dropping search catalogue or changing current sel
  document:{hidden:false},setInterval(){},v7ApplySnapshot(d){Object.assign(ctx.state,d)}};
  ctx.window=ctx;vm.createContext(ctx);
  vm.runInContext(between(client,'let V7_DISCOVERY_PENDING','let V7_HYDRATE_PENDING'),ctx);
- ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}]});
+ ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}],sharedVerified:[{id:'new',sourceIndex:0,viewers:2}]});
  assert.deepEqual(Array.from(ctx.state.channels,c=>c.id),['existing','new']);assert.equal(ctx.state.currentChannel,selected);
  assert.equal(ctx.state.catalog[0].id,'movie');assert.ok(ctx.veloraDiscoveryHints.has('new'));
+ assert.equal(ctx.veloraSharedPool.get('new').viewers,2);
  ctx.state.user=null;ctx.v7ApplyDiscovery({channels:[{id:'after-logout'}]});assert.equal(ctx.state.channels.length,2);
 });
 test('public startup reads avoid auth preflight while private requests retain authorization',async()=>{
