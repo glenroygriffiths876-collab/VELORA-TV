@@ -657,12 +657,12 @@ function publicSnapshot(){
 // Shared server hints are transport checks, never device-video verification.
 function discoverySnapshot(now=Date.now()){
   const community=sharedVideoSnapshot(db,now);
-  const sharedIds=new Set(community.map(x=>x.id));
+  const recentIds=new Set(community.filter(x=>x.recent).map(x=>x.id));
   const fresh=s=>s.health==='up'&&now-(Date.parse(s.lastChecked)||0)<20*60000;
-  const candidates=db.channels.filter(c=>c.id==='jm_tvj_direct'||sharedIds.has(c.id)||(c.sources||[]).some(fresh));
+  const candidates=db.channels.filter(c=>c.id==='jm_tvj_direct'||recentIds.has(c.id)||(c.sources||[]).some(fresh));
   candidates.sort((a,b)=>{
     if(a.id==='jm_tvj_direct')return -1;if(b.id==='jm_tvj_direct')return 1;
-    return Number(sharedIds.has(b.id))-Number(sharedIds.has(a.id))||
+    return Number(recentIds.has(b.id))-Number(recentIds.has(a.id))||
       (Date.parse(b.lastPlaybackSuccessAt)||0)-(Date.parse(a.lastPlaybackSuccessAt)||0)||
       Math.min(...(a.sources||[]).filter(fresh).map(s=>Number(s.latencyMs)||10000))-
       Math.min(...(b.sources||[]).filter(fresh).map(s=>Number(s.latencyMs)||10000));
@@ -1448,7 +1448,7 @@ async function api(req,res){
       const reason=String(body.reason||'');
       const claimed=String(body.url||'');
       const allowed=[ch.url,ch.upstreamUrl,...(ch.clientUrls||[]),...(ch.sources||[]).flatMap(s=>[s.url,s.upstreamUrl])].filter(Boolean);
-      if(/^a\\s*&\\s*e(?:\\s*\\([^)]*\\))?$/i.test(ch.name||''))allowed.push('/api/public/compatible/ae/index.m3u8');
+      if(/^a\s*&\s*e(?:\s*\([^)]*\))?$/i.test(ch.name||''))allowed.push('/api/public/compatible/ae/index.m3u8');
       const sourceRecognized=claimed&&allowed.some(u=>canonicalPlaybackReportUrl(u,ch)===target);
       if(sourceRecognized){
         const identity=crypto.createHmac('sha256',MASTER_KEY||PUBLIC_RELAY_KEY)

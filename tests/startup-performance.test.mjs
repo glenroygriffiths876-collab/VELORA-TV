@@ -120,7 +120,7 @@ test('shortlist merges without dropping search catalogue or changing current sel
  document:{hidden:false},setInterval(){},v7ApplySnapshot(d){Object.assign(ctx.state,d)}};
  ctx.window=ctx;vm.createContext(ctx);
  vm.runInContext(between(client,'let V7_DISCOVERY_PENDING','let V7_HYDRATE_PENDING'),ctx);
- ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}],sharedVerified:[{id:'new',sourceIndex:0,viewers:2}]});
+ ctx.v7ApplyDiscovery({channels:[{id:'new',availability:'up'}],sharedVerified:[{id:'new',sourceIndex:0,viewers:2,lastVerifiedAt:new Date().toISOString(),recent:true}]});
  assert.deepEqual(Array.from(ctx.state.channels,c=>c.id),['existing','new']);assert.equal(ctx.state.currentChannel,selected);
  assert.equal(ctx.state.catalog[0].id,'movie');assert.ok(ctx.veloraDiscoveryHints.has('new'));
  assert.equal(ctx.veloraSharedPool.get('new').viewers,2);
@@ -183,4 +183,27 @@ test('English A&E prioritizes browser conversion without relabeling regional edi
  const ctx={v7MediaUrl:u=>u};vm.createContext(ctx);vm.runInContext(between(client,'function v7LiveCandidates','async function v7ResolveCandidates'),ctx);
  assert.equal(ctx.v7LiveCandidates({name:'A&E (720p)',url:'raw'})[0],'/api/public/compatible/ae/index.m3u8');
  assert.deepEqual(Array.from(ctx.v7LiveCandidates({name:'A&E Latin America (1080p)',url:'regional'})),['regional']);
+});
+
+test('shared discovery with historical hints does not alter a selected channel',()=>{
+ const selected={id:'chosen'},ctx={state:{user:{id:1},currentChannel:selected,channels:[{id:'old'}],catalog:[],providers:[]},
+ document:{hidden:false},setInterval(){},v7ApplySnapshot(d){Object.assign(ctx.state,d)}};
+ ctx.window=ctx;vm.createContext(ctx);
+ vm.runInContext(between(client,'let V7_DISCOVERY_PENDING','let V7_HYDRATE_PENDING'),ctx);
+ const now=new Date().toISOString();
+ ctx.v7ApplyDiscovery({channels:[{id:'shared',url:'x.m3u8'}],
+   sharedVerified:[{id:'shared',sourceIndex:0,lastVerifiedAt:now,recent:false,viewers:1}]});
+ assert.equal(ctx.veloraSharedPool.get('shared').recent,false);
+ assert.equal(ctx.state.currentChannel,selected);
+});
+
+test('shared channel history remains separate from genuinely confirmed working rows',()=>{
+ const script=fs.readFileSync('ux-v18-guide.js','utf8');
+ const scan=fs.readFileSync('ux-v17-quiet-scan.js','utf8');
+ assert.match(script,/Previously played channels/);
+ assert.match(script,/veloraStandbySection/);
+ assert.match(script,/veloraVerifiedChannels\?\.history/);
+ assert.match(script,/only locally confirmed video enters Working/i);
+ assert.match(scan,/const HISTORY_MS=7\*24\*60\*60\*1000/);
+ assert.match(scan,/return Date\.now\(\)-Number\(stored\.at\|\|0\)<FRESH_MS/);
 });

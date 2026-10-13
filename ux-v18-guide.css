@@ -39,3 +39,16 @@
 #view-live #veloraVerifiedProgress.veloraIndeterminate{width:32%!important;animation:veloraVerifiedSweep 2.6s linear infinite}
 @keyframes veloraVerifiedSweep{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
 @media(prefers-reduced-motion:reduce){#view-live #veloraVerifiedProgress.veloraIndeterminate{animation:none;width:100%!important;opacity:.6}}
+
+/* Non-green shared history is deliberately distinct from confirmed working video. */
+#view-live .veloraStandbySection{margin-top:16px;padding-top:15px;border-top:1px solid rgba(255,255,255,.12)}
+#view-live .veloraStandbySection[hidden]{display:none!important}
+#view-live .veloraStandbyHeader h4{font-size:14px;font-weight:800;color:#f1f6fa;margin:0 0 5px}
+#view-live .veloraStandbyHeader h4 span{display:inline-block;background:#253044;border-radius:20px;padding:2px 8px;color:#c9d9ef}
+#view-live .veloraStandbyHeader p,#view-live .veloraCatalogueHint{color:#98a6b9;font-size:11px;line-height:1.5;margin:4px 0 12px}
+#view-live .veloraStandbyRows{max-height:300px}
+#view-live .veloraStandbyRow{background:#111722;border-color:rgba(147,163,185,.19);min-height:45px}
+#view-live .veloraStandbyTag{color:#b6c1d2;font-size:9px;line-height:1.25;max-width:110px;flex:0 0 auto;text-align:right}
+#view-live .veloraStandbyMore{display:block;width:100%;background:#192638;color:#c9ddf5;border:1px solid #ffffff18;padding:10px;border-radius:10px;margin-top:9px;font-size:12px}
+#view-live .veloraStandbyMore[hidden]{display:none!important}
+#view-live .veloraCatalogueHint{margin:14px 0 0}

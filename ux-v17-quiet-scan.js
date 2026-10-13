@@ -4,6 +4,7 @@
   'use strict';
   const KEY='velora_verified_video_v17';
   const FRESH_MS=24*60*60*1000;
+  const HISTORY_MS=7*24*60*60*1000;
   const RECHECK_MS=4*60*60*1000;
   const RETRY_MS=15*60*1000;
   const FAIL_MS=20*60*1000;
@@ -56,8 +57,8 @@
       // Expired records are pruned first to avoid unbounded local storage use.
       const now=Date.now();
       const saved=[...known.entries()].filter(([id,x])=>
-        id&&x&&now-Number(x.at||0)<FRESH_MS);
-      for(const [id,x] of [...known])if(now-Number(x?.at||0)>=FRESH_MS)known.delete(id);
+        id&&x&&now-Number(x.at||0)<HISTORY_MS);
+      for(const [id,x] of [...known])if(now-Number(x?.at||0)>=HISTORY_MS)known.delete(id);
       localStorage.setItem(KEY,JSON.stringify(saved));
     } catch {}
   }
@@ -66,7 +67,7 @@
     if(Array.isArray(data))for(const entry of data) {
       if(!Array.isArray(entry)||entry.length!==2)continue;
       const [id,x]=entry;
-      if(typeof id==='string'&&x&&Date.now()-Number(x.at||0)<FRESH_MS)known.set(id,x);
+      if(typeof id==='string'&&x&&Date.now()-Number(x.at||0)<HISTORY_MS)known.set(id,x);
     }
   } catch {}
 
@@ -86,10 +87,10 @@
     if(!c||blocked.get(c.id)>Date.now()||V7_SESSION_FAILED_IDS.has(c.id))return false;
     const stored=known.get(c.id);
     if(!stored)return false;
-    if(Date.now()-Number(stored.at||0)>=FRESH_MS||stored.fingerprint!==fingerprint(c)) {
+    if(stored.fingerprint!==fingerprint(c)||Date.now()-Number(stored.at||0)>=HISTORY_MS) {
       known.delete(c.id);return false;
     }
-    return true;
+    return Date.now()-Number(stored.at||0)<FRESH_MS;
   }
   function readyList() {
     const {byId}=catalog();
@@ -279,7 +280,8 @@
     const failed=Date.parse(c.lastPlaybackFailureAt||0)||0;
     const hint=window.veloraDiscoveryHints?.get(c.id)||0;
     if(Date.now()-hint<90000)return 500000;
-    if(window.veloraSharedPool?.has(c.id))return 750000;
+    if(window.veloraSharedPool?.get(c.id)?.recent)return 750000;
+    if(window.veloraSharedPool?.has(c.id))return 350000;
     if(played>failed&&Date.now()-played<24*3600000)return 100000;
     if(c.availability==='up')return 4000;
     if((c.sources||[]).some(s=>s.health==='up'))return 2000;
@@ -351,7 +353,7 @@
     // Rotate alternatives across rounds rather than permanently ignoring #3+.
     let urls=all.slice(offset).concat(all.slice(0,offset)).slice(0,2);
     const hint=window.veloraSharedPool?.get(c.id);
-    const index=Number(hint?.sourceIndex);
+    const index=hint?.sourceIndex;
     if(hint&&Number.isInteger(index)&&index>=0&&index<all.length){
       const preferred=all[index];
       urls=[preferred,...urls.filter(x=>x!==preferred)].slice(0,2);
@@ -484,6 +486,8 @@
     ids:()=>readyList().map(c=>c.id),
     count:()=>readyList().length,
     scan:()=>quietFindMore(true),
+    history:()=>{const {byId}=catalog();return [...known.keys()].filter(id=>byId.has(id)&&!working(byId.get(id))&&
+      Date.now()-Number(known.get(id)?.at||0)<HISTORY_MS&&known.get(id)?.fingerprint===fingerprint(byId.get(id)))},
     scanStatus:()=>({verified:readyList().length,shared:window.veloraSharedPool?.size||0,checked:checkedInSession,
       scanning,cycles,successful:successfulInSession,lastAttemptAt,
       lastNewChannelAt,continuous:true,paused:document.hidden,

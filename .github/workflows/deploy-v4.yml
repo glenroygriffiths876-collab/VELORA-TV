@@ -56,8 +56,8 @@ jobs:
           test -s ux-v19-programme-search.js
           test -s ux-v19-programme-search.css
           grep -Fq 'ux-v16-live-tuning.js?v=3' index.html
-          grep -Fq 'ux-v17-quiet-scan.js?v=16' index.html
-          grep -Fq 'ux-v18-guide.js?v=7' index.html
+          grep -Fq 'ux-v17-quiet-scan.js?v=17' index.html
+          grep -Fq 'ux-v18-guide.js?v=8' index.html
           grep -Fq 'ux-v19-programme-search.js?v=6' index.html
           test -f index.html
           test -f styles.css
@@ -117,8 +117,8 @@ jobs:
           cmp -s velora-captions.js /tmp/velora-site/velora-captions.js
           cmp -s velora-captions.css /tmp/velora-site/velora-captions.css
           grep -Fq 'ux-v16-live-tuning.js?v=3' /tmp/velora-site/index.html
-          grep -Fq 'ux-v17-quiet-scan.js?v=16' /tmp/velora-site/index.html
-          grep -Fq 'ux-v18-guide.js?v=7' /tmp/velora-site/index.html
+          grep -Fq 'ux-v17-quiet-scan.js?v=17' /tmp/velora-site/index.html
+          grep -Fq 'ux-v18-guide.js?v=8' /tmp/velora-site/index.html
           grep -Fq 'ux-v19-programme-search.js?v=6' /tmp/velora-site/index.html
           cp demo-authorized-catalog.json demo-distributor-catalog.csv demo-authorized-playlist.m3u demo-epg.xml /tmp/velora-site/ 2>/dev/null || true
           touch /tmp/velora-site/.nojekyll
