@@ -1,6 +1,7 @@
 (()=> {
   const params=new URLSearchParams(location.search);
-  const tv=params.get('tv')==='1'||window.VELORA_TV_SHELL===true;
+  const tv=params.get('tv')==='1'||window.VELORA_TV_SHELL===true||window.__VELORA_TV__===true||
+    /smart.?tv|hbbtv|tizen|webos|netcast|bravia|viera|roku|googletv|android[^)]*tv|aft[bstm]|jvc|television|tv.?browser/i.test(navigator.userAgent||'');
   if(!tv)return;
 
   document.documentElement.classList.add('tvMode');
@@ -19,7 +20,8 @@
     const s=getComputedStyle(el);
     if(s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0)return false;
     const r=el.getBoundingClientRect();
-    return r.width>2&&r.height>2&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;
+    // Buttons below the viewport must remain reachable by remote navigation.
+    return r.width>2&&r.height>2;
   };
 
   const focusables=()=>[...new Set([...document.querySelectorAll(selector)])].filter(isVisible);
