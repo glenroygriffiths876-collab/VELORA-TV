@@ -1,12 +1,12 @@
 (()=> {
   const params=new URLSearchParams(location.search);
-  const tv=params.get('tv')==='1'||window.VELORA_TV_SHELL===true||window.__VELORA_TV__===true||
+  let tv=params.get('tv')==='1'||window.VELORA_TV_SHELL===true||window.__VELORA_TV__===true||
     /smart.?tv|hbbtv|tizen|webos|netcast|bravia|viera|roku|googletv|android[^)]*tv|aft[bstm]|jvc|television|tv.?browser/i.test(navigator.userAgent||'');
-  if(!tv)return;
-
-  document.documentElement.classList.add('tvMode');
-  document.body.classList.add('tvMode');
-  window.__VELORA_TV__=true;
+  if(tv){
+    document.documentElement.classList.add('tvMode');
+    document.body.classList.add('tvMode');
+    window.__VELORA_TV__=true;
+  }
 
   const selector=[
     'button:not([disabled])','a[href]','input:not([disabled])','select:not([disabled])',
@@ -87,11 +87,12 @@
     return false;
   };
 
-  document.addEventListener('focusin',e=>markFocus(e.target),true);
-  document.addEventListener('pointerdown',e=>{const el=e.target.closest(selector);if(el)markFocus(el)},true);
+  document.addEventListener('focusin',e=>{if(tv)markFocus(e.target)},true);
+  document.addEventListener('pointerdown',e=>{if(!tv)return;const el=e.target.closest(selector);if(el)markFocus(el)},true);
 
   document.addEventListener('keydown',e=>{
-    const k=e.key;
+    if(!tv)return;
+    const k=e.key||({37:'ArrowLeft',38:'ArrowUp',39:'ArrowRight',40:'ArrowDown',13:'Enter',27:'Escape'}[e.keyCode]||'');
     const tag=(document.activeElement?.tagName||'').toLowerCase();
     const typing=tag==='input'||tag==='textarea'||tag==='select';
 
@@ -114,7 +115,15 @@
   },true);
 
   const observer=new MutationObserver(()=>setTimeout(focusFirst,60));
-  observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','hidden','aria-hidden']});
-  addEventListener('load',()=>setTimeout(focusFirst,180));
-  setTimeout(focusFirst,260);
+  const observe=()=>observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','hidden','aria-hidden']});
+  if(tv){observe();setTimeout(focusFirst,260)}
+  document.addEventListener('velora-tv-activate',()=>{
+    if(tv)return;
+    tv=true;
+    document.documentElement.classList.add('tvMode');
+    document.body.classList.add('tvMode');
+    observe();
+    setTimeout(focusFirst,60);
+  });
+  addEventListener('load',()=>{if(tv)setTimeout(focusFirst,180)});
 })();
