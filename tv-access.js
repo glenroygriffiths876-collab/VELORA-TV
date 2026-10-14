@@ -20,9 +20,17 @@
   function loginVisible() { return visible(byId('login')); }
   function activateTV() {
     if (!tvActive()) return;
+    var wasActive = window.__VELORA_TV__ === true;
     window.__VELORA_TV__ = true;
     if (document.documentElement.classList) document.documentElement.classList.add('tvMode');
     if (document.body && document.body.classList) document.body.classList.add('tvMode');
+    if (!wasActive) {
+      try {
+        var event = document.createEvent('Event');
+        event.initEvent('velora-tv-activate', false, false);
+        document.dispatchEvent(event);
+      } catch (ignored) {}
+    }
   }
   function controls() {
     var root = byId('login');
@@ -68,6 +76,10 @@
   }
   document.addEventListener('keydown', function (e) {
     var k = e.key || '';
+    if (e.keyCode === 40 || k === 'Down') k = 'ArrowDown';
+    if (e.keyCode === 38 || k === 'Up') k = 'ArrowUp';
+    if (e.keyCode === 37 || k === 'Left') k = 'ArrowLeft';
+    if (e.keyCode === 39 || k === 'Right') k = 'ArrowRight';
     if (k !== 'ArrowDown' && k !== 'ArrowUp' && k !== 'ArrowLeft' && k !== 'ArrowRight') return;
     if (!loginVisible()) return;
     remoteSeen = true;
