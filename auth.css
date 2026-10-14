@@ -1,4 +1,6 @@
 /* VELORA account, tester-profile and admin-usage UI */
+.authCompatStatus{padding:12px 14px;border-radius:11px;border:1px solid rgba(255,135,141,.5);background:#3b1523;color:#fff1f2;line-height:1.45;font-size:14px;text-align:left}
+
 .authCard form{display:flex;flex-direction:column;gap:12px}
 .authCard form.hidden{display:none!important}
 .authEyebrow{font-size:10px;font-weight:900;letter-spacing:.16em;color:#64ded4;margin-top:8px}
