@@ -153,19 +153,24 @@
       xhr.send(body ? JSON.stringify(body) : null);
     } catch (err2) { done(new Error('Unable to send sign-in request from this TV browser.')); }
   }
+  function openCompatibleTV() {
+    // Keep the same user session in same-origin storage; never put tokens into URLs.
+    try { window.location.href = 'tv-lite.html?tv=1'; }
+    catch (err) { status('loginForm', 'Use the TV-compatible Live TV link below to continue.'); }
+  }
   function enter(data, form) {
     if (!data || !data.user || !data.token) { status(form, 'Sign-in response was incomplete.'); return; }
+    try { localStorage.setItem('velora_auth_token', data.token); } catch (ignored) {}
     if (typeof window.veloraEnterApp !== 'function') {
-      status(form, 'This TV browser cannot start the VELORA player. Try the VELORA Android TV app or an updated TV browser.');
+      openCompatibleTV();
       return;
     }
     try {
-      localStorage.setItem('velora_auth_token', data.token);
       window.veloraCurrentUser = data.user;
       window.veloraEnterApp(data.user);
       if (typeof window.veloraTrack === 'function') window.veloraTrack('session_start', { view: 'home' });
     } catch (err) {
-      status(form, 'This TV browser cannot open VELORA after sign-in. Try a newer browser or the Android TV app.');
+      openCompatibleTV();
     }
   }
   document.addEventListener('submit', function (e) {
