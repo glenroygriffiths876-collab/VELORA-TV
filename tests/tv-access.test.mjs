@@ -90,7 +90,7 @@ test('TV bridge stays legacy syntax compatible and is loaded before modern bundl
   assert.match(html,/id="loginForm" onsubmit="return false"/);
   assert.match(html,/id="registerForm" class="hidden" onsubmit="return false"/);
   assert.match(sw,/tv-access.js\?v=3/);
-  assert.match(sw,/velora-shell-v77/);
+  assert.match(sw,/velora-shell-v78/);
 });
 test('TV remote can navigate to Create Profile even below viewport',()=>{
   const h=harness();
