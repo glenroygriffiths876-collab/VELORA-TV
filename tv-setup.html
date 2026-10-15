@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080b18">
+<title>Install VELORA on a television</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;background:#070a15;color:#f8faff;font:18px/1.5 Arial,Helvetica,sans-serif;min-height:100%}
+header{padding:17px 30px;background:#10172a;border-bottom:1px solid #333f65}
+header b{font-size:30px;letter-spacing:3px}
+header span{color:#75e8df}
+main{max-width:1140px;padding:26px;margin:0 auto}
+h1{font-size:clamp(27px,4vw,45px);margin:0 0 12px;line-height:1.17}
+h2{font-size:25px;margin:0 0 12px}
+p{color:#cdd6ee;line-height:1.5;margin:9px 0 16px}
+.lead{font-size:21px;color:#e2e8fa;max-width:900px}
+.panel{background:#131b30;border:1px solid #3e506f;border-radius:17px;padding:24px;margin:20px 0}
+.choice{display:block;width:100%;border:2px solid #6c7fb3;border-radius:14px;min-height:77px;text-align:left;padding:16px 22px;margin:13px 0;background:#263557;color:white;font-size:21px;font-weight:bold;text-decoration:none;cursor:pointer}
+.choice small{display:block;font-weight:normal;color:#dce4ff;margin-top:4px;font-size:16px}
+.choice.primary{background:#5045c8;border-color:#c3c5ff}
+.choice:focus,.choice:focus-visible,a:focus{outline:5px solid #fff;outline-offset:3px;box-shadow:0 0 0 10px rgba(85,101,247,.6)}
+.btn{display:inline-block;padding:14px 24px;margin:10px 10px 10px 0;background:#5045c8;border:2px solid #c3c5ff;border-radius:12px;color:white;font-size:20px;min-height:55px;text-decoration:none;font-weight:bold}
+.btn.secondary{background:#273551;border-color:#8498c5}
+.notice{background:#23304a;border:1px solid #7289be;border-radius:11px;padding:13px 16px}
+.route{display:none}
+.route.visible{display:block}
+#platformHint{font-weight:bold;color:#dce8ff}
+strong{color:#fff}
+code{color:#d9e2ff;font-size:16px}
+ol{padding-left:28px;color:#e1e9fa}
+li{padding:7px 0}
+.foot{font-size:14px;color:#a7b6d0;margin:20px 0}
+@media(max-width:600px){main{padding:13px}header{padding:15px 17px}header b{font-size:24px}.panel{padding:16px}.choice{font-size:18px;padding:16px}.choice small{font-size:14px}}
+</style>
+</head>
+<body>
+<header><b>VELORA <span>TV</span></b></header>
+<main>
+<h1>Make VELORA easy to open on your TV.</h1>
+<p class="lead">No complicated bookmark menus. Choose the kind of television you have, and we'll show the simplest supported route.</p>
+<div class="notice" id="platformHint">Checking your TV browser…</div>
+<div class="panel" id="choices">
+<h2>What do you see on the TV's Home screen?</h2>
+<button type="button" class="choice primary" id="chooseAndroid">
+Google TV, Android TV, Google Play Store or Fire TV
+<small>Install the VELORA app icon using the TV installer.</small>
+</button>
+<button type="button" class="choice" id="chooseOther">
+Another TV system or a built-in browser
+<small>Examples: Samsung, LG, Roku, VIDAA, or an older JVC smart interface.</small>
+</button>
+<button type="button" class="choice" id="chooseUnknown">
+I'm not sure which TV system it uses
+<small>See an easy way to identify it—without changing settings.</small>
+</button>
+</div>
+<section class="panel route" id="routeAndroid">
+<h2>Install the VELORA Android TV app</h2>
+<p>Choose <strong>Download VELORA TV</strong>. The television may then ask permission to install downloaded apps and require you to confirm the installation.</p>
+<a id="apkDownload" class="btn" href="downloads/VELORA-TV.apk" type="application/vnd.android.package-archive">Download VELORA TV</a>
+<p class="notice">This works only on compatible Android-based TVs or Fire TV devices that permit APK installation. You must approve the TV's security prompts; Velora cannot skip them. If nothing downloads or the TV says the file is unsupported, use the browser option or ask for help identifying its operating system.</p>
+<a class="btn secondary" href="tv-lite.html?tv=1">Watch TV without installing</a>
+</section>
+<section class="panel route" id="routeOther">
+<h2>Your TV may not allow website app installation.</h2>
+<p>JVC and other brands use several different operating systems. Some only allow apps from their own store and cannot install an Android APK or create a home-screen icon from a website.</p>
+<p><strong>For now:</strong> use the large button below to open the remote-friendly VELORA player. If your browser supports setting a startup page, this address can be used there, but Velora cannot change the TV browser's startup page itself.</p>
+<a class="btn" href="tv-lite.html?tv=1">Open VELORA Live TV</a>
+<p class="notice">If this TV cannot pin websites or install the VELORA APK, the dependable way to get a dedicated app icon is to use a compatible Android TV or Google TV streaming device connected by HDMI.</p>
+</section>
+<section class="panel route" id="routeUnknown">
+<h2>Identify the TV in under a minute</h2>
+<ol>
+<li>Press <strong>Home</strong> on the TV remote.</li>
+<li>Look for <strong>Google Play Store</strong>, <strong>Google TV</strong>, <strong>Android TV</strong>, <strong>Fire TV</strong>, <strong>Roku</strong>, <strong>VIDAA</strong> or another app store.</li>
+<li>If it's unclear, open <strong>Settings → About / Device Information</strong> and photograph the model name. No password or private account details are needed.</li>
+</ol>
+<p>The <strong>JVC TruSound</strong> label describes a TV feature; it does not identify the operating system.</p>
+<a class="btn secondary" href="tv-lite.html?tv=1">Open VELORA for now</a>
+</section>
+<div class="panel">
+<h2>Already have an Android TV app installed?</h2>
+<p>Press <strong>Home → Apps → VELORA</strong>. Once installed, you should not need to type the web address every time.</p>
+<button id="backChoices" class="choice" type="button">← Choose a different TV type</button>
+</div>
+<p class="foot">Private family/testing preview. The Android TV download is a test build; actual playback depends on your television and channel formats.</p>
+</main>
+<script src="tv-setup.js?v=1"></script>
+</body>
+</html>
