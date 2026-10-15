@@ -68,7 +68,7 @@ function harness({ tv = true, modernClient = true, networkError = false, player 
   }
   const w={
     document:doc,localStorage,navigator:{userAgent:tv?'JVC Smart TV Browser':'Mozilla/5.0'},
-    location:{search:tv?'?tv=1':''},getComputedStyle:()=>({display:'block',visibility:'visible'}),
+    location:{search:tv?'?tv=1':'',href:'index.html'},getComputedStyle:()=>({display:'block',visibility:'visible'}),
     XMLHttpRequest,Date,Math,JSON,
     veloraEnterApp:player?(user)=>{entered=user}:undefined,
     addEventListener(){},setTimeout(){}
@@ -81,16 +81,16 @@ function harness({ tv = true, modernClient = true, networkError = false, player 
     for(const fn of handlers[type]||[]){fn(event);if(event.stopped)break}
     return event;
   };
-  return {nodes,storage,dispatch,focus:(el)=>{active=el},get active(){return active},get entered(){return entered}};
+  return {nodes,storage,location:w.location,dispatch,focus:(el)=>{active=el},get active(){return active},get entered(){return entered}};
 }
 
 test('TV bridge stays legacy syntax compatible and is loaded before modern bundles',()=>{
   assert.doesNotMatch(bridge,/\b(?:const|let|async)\b|=>|\?\.|\?\?/);
-  assert.ok(html.indexOf('tv-access.js?v=2')<html.indexOf('app.js?v=3'));
+  assert.ok(html.indexOf('tv-access.js?v=3')<html.indexOf('app.js?v=3'));
   assert.match(html,/id="loginForm" onsubmit="return false"/);
   assert.match(html,/id="registerForm" class="hidden" onsubmit="return false"/);
   assert.match(sw,/tv-access.js\?v=2/);
-  assert.match(sw,/velora-shell-v76/);
+  assert.match(sw,/velora-shell-v77/);
 });
 test('TV remote can navigate to Create Profile even below viewport',()=>{
   const h=harness();
@@ -119,11 +119,12 @@ test('TV authentication errors are visible and do not submit the page',()=>{
   assert.match(h.nodes.loginAuthStatus.textContent,/TV browser could not connect/);
   assert.equal(h.storage.get('velora_auth_token'),undefined);
 });
-test('Unsupported TV player shows a clear message instead of blank login',()=>{
+test('TV login automatically opens the separate legacy player if modern scripts failed',()=>{
   const h=harness({player:false});
   const e=h.dispatch('submit',{target:h.nodes.loginForm});
   assert.equal(e.defaultPrevented,true);
-  assert.match(h.nodes.loginAuthStatus.textContent,/TV browser cannot start/);
+  assert.equal(h.storage.get('velora_auth_token'),'test-token');
+  assert.equal(h.location.href,'tv-lite.html?tv=1');
 });
 test('Phone sign-in stays on existing modern authentication path',()=>{
   const h=harness({tv:false,modernClient:true});
