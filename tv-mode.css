@@ -1,9 +1,14 @@
 /* Velora TV Mode — only active when ?tv=1 is present. Normal phone/tablet/desktop layouts are untouched. */
 html.tvMode,body.tvMode{min-height:100%;background:#05060a}
 body.tvMode{overscroll-behavior:none}
-body.tvMode .installAppBtn,
-body.tvMode .installModal,
 body.tvMode .mobileNav{display:none!important}
+/* Installation must remain accessible by remote—previous TV mode hid both
+   its button and modal, so the install option could never work on a TV. */
+body.tvMode .installAppBtn{display:flex!important;min-height:56px;min-width:180px;z-index:180}
+body.tvMode .installAppBtn:focus{outline:4px solid #fff!important;outline-offset:3px}
+body.tvMode .installModal.on{display:grid!important}
+body.tvMode .installModalAction{min-height:60px;font-size:19px}
+body.tvMode .installCard{max-height:90vh;overflow:auto}
 body.tvMode .topbar{min-height:82px;padding:14px 34px;gap:24px}
 body.tvMode .brand{font-size:21px}
 body.tvMode .mainnav{gap:7px;overflow:visible;flex-wrap:wrap}
