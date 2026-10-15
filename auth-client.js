@@ -152,8 +152,8 @@
   }
 
   document.addEventListener('click',e=>{
-    if(e.target.closest('#showRegister')){e.preventDefault();showAuth('register')}
-    if(e.target.closest('#showLogin')){e.preventDefault();showAuth('login')}
+    if(e.target.closest('#showRegister')){showAuth('register')}
+    if(e.target.closest('#showLogin')){showAuth('login')}
     if(e.target.closest('#refreshUsage')){e.preventDefault();loadUsage()}
   });
 
@@ -196,5 +196,12 @@
     }
   });
 
-  window.addEventListener('DOMContentLoaded',restore);
+  window.addEventListener('hashchange',()=>{
+    if(location.hash==='#create-profile')showAuth('register');
+    else if(location.hash==='#sign-in')showAuth('login');
+  });
+  window.addEventListener('DOMContentLoaded',()=>{
+    if(location.hash==='#create-profile')showAuth('register');
+    restore();
+  });
 })();

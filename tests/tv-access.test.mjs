@@ -7,6 +7,7 @@ const bridge = fs.readFileSync(new URL('../tv-access.js', import.meta.url), 'utf
 const tvMode = fs.readFileSync(new URL('../tv-mode.js', import.meta.url), 'utf8');
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const sw = fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../auth.css', import.meta.url), 'utf8');
 
 function harness({ tv = true, modernClient = true, networkError = false, player = true } = {}) {
   const handlers = {};
@@ -25,7 +26,7 @@ function harness({ tv = true, modernClient = true, networkError = false, player 
   const email=nodes.loginEmail=make('loginEmail',150);
   const pass=nodes.loginPassword=make('loginPassword',230);
   const sign=make('signIn',310,'BUTTON');
-  const create=make('showRegister',920,'BUTTON'); // intentionally below screen
+  const create=make('showRegister',920,'A'); // intentionally below screen
   nodes.showRegister=create;
   const name=nodes.registerName=make('registerName',140);
   nodes.registerUsername=make('registerUsername',220);
@@ -85,11 +86,11 @@ function harness({ tv = true, modernClient = true, networkError = false, player 
 
 test('TV bridge stays legacy syntax compatible and is loaded before modern bundles',()=>{
   assert.doesNotMatch(bridge,/\b(?:const|let|async)\b|=>|\?\.|\?\?/);
-  assert.ok(html.indexOf('tv-access.js?v=1')<html.indexOf('app.js?v=3'));
+  assert.ok(html.indexOf('tv-access.js?v=2')<html.indexOf('app.js?v=3'));
   assert.match(html,/id="loginForm" onsubmit="return false"/);
   assert.match(html,/id="registerForm" class="hidden" onsubmit="return false"/);
-  assert.match(sw,/tv-access.js\?v=1/);
-  assert.match(sw,/velora-shell-v75/);
+  assert.match(sw,/tv-access.js\?v=2/);
+  assert.match(sw,/velora-shell-v76/);
 });
 test('TV remote can navigate to Create Profile even below viewport',()=>{
   const h=harness();
@@ -129,4 +130,20 @@ test('Phone sign-in stays on existing modern authentication path',()=>{
   const e=h.dispatch('submit',{target:h.nodes.loginForm});
   assert.equal(e.defaultPrevented,false);
   assert.equal(h.storage.get('velora_auth_token'),undefined);
+});
+
+test('Create Profile is a native, bright and focusable link—not a dim disabled button',()=>{
+  assert.match(html,/<a class="authCreateLink wide" id="showRegister" href="#create-profile" tabindex="0">/);
+  assert.doesNotMatch(html,/<button[^>]*id="showRegister"/);
+  assert.match(css,/\.authCreateLink\{[^}]*border:2px solid #c8c7ff/);
+  assert.match(css,/\.authCreateLink:focus/);
+  assert.match(css,/#create-profile:target ~ #login #registerForm\{display:flex!important\}/);
+  assert.match(css,/#create-profile:target ~ #login #loginForm\{display:none!important\}/);
+  assert.match(html,/<a class="authBackLink wide" id="showLogin" href="#sign-in"/);
+});
+test('Create Profile opens registration through the early TV compatibility handler',()=>{
+  const h=harness();
+  const e=h.dispatch('click',{target:h.nodes.showRegister});
+  // Native link is allowed to follow #create-profile so CSS :target works without JS too.
+  assert.equal(e.defaultPrevented,false);
 });
