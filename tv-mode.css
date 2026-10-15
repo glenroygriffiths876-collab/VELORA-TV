@@ -17,6 +17,7 @@ body.tvMode [tabindex="0"],
 body.tvMode .card,
 body.tvMode .v6MovieCard,
 body.tvMode .v6ChannelCard{outline:none}
+body.tvMode button:focus,
 body.tvMode button:focus-visible,
 body.tvMode [tabindex="0"]:focus-visible,
 body.tvMode .card.tvFocus,
@@ -29,8 +30,11 @@ body.tvMode .v6ChannelCard.tvFocus{
   box-shadow:0 0 0 8px rgba(108,92,255,.72),0 18px 42px rgba(0,0,0,.6)!important;
   transform:scale(1.045);
 }
+body.tvMode input:focus,
 body.tvMode input:focus-visible,
+body.tvMode select:focus,
 body.tvMode select:focus-visible,
+body.tvMode textarea:focus,
 body.tvMode textarea:focus-visible{
   outline:4px solid #fff!important;
   outline-offset:3px;
