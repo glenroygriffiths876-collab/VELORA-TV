@@ -35,7 +35,7 @@
   function controls() {
     var root = byId('login');
     if (!root) return [];
-    var all = root.querySelectorAll('input, button');
+    var all = root.querySelectorAll('input, button, a[href]');
     var out = [];
     for (var i = 0; i < all.length; i++) if (visible(all[i])) out.push(all[i]);
     return out;
@@ -118,8 +118,8 @@
   }
   document.addEventListener('click', function (e) {
     var id = e.target && e.target.id;
-    if (id === 'showRegister') { e.preventDefault(); show('register'); }
-    if (id === 'showLogin') { e.preventDefault(); show('login'); }
+    if (id === 'showRegister') { show('register'); }
+    if (id === 'showLogin') { show('login'); }
   }, true);
   function getStore(key) { try { return localStorage.getItem(key) || ''; } catch (ignored) { return ''; } }
   function deviceId() {
@@ -196,6 +196,7 @@
   }, true);
   function restoreFallback() {
     activateTV();
+    if (location.hash === '#create-profile') show('register');
     if (window.VeloraAuth) return; // modern client handles restoration
     var token = getStore('velora_auth_token');
     if (!token) { if (tvActive()) focusFirst(); return; }
