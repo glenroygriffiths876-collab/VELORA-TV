@@ -36,7 +36,7 @@
     const isRoku = /Roku|DVP-/i.test(ua);
     const isVizio = /VIZIO|SmartCast/i.test(ua);
     const isTV = isAndroidTV || isFireTV || isSamsungTV || isLGTV || isVIDAA || isRoku || isVizio ||
-      /TV Safari|HbbTV|SmartTV|SMART-TV|Television/i.test(ua);
+      /TV Safari|HbbTV|SmartTV|SMART-TV|Television|JVC/i.test(ua) || /(?:[?&])tv=1(?:&|$)/.test(location.search);
     const isMac = /Macintosh|Mac OS X/i.test(ua) && !isiOS;
     const tvFamily =
       isFireTV ? 'Amazon Fire TV' :
@@ -211,9 +211,9 @@
         installBadge('?', p.tvFamily || 'Smart TV', 'TV platform detected', 'detected') +
         '<p class="smartInstallLead">This TV browser does not expose enough platform information for a safe automatic package choice.</p>' +
         '<p>VELORA will not guess and send your TV the wrong app. You can launch the remote-friendly TV interface now.</p>';
-      action.textContent = 'Use VELORA TV Mode';
+      action.textContent = 'Choose TV Installation Method';
       action.classList.remove('hidden');
-      action.onclick = startTvMode;
+      action.onclick = () => { location.href = new URL('./tv-setup.html', location.href).href; };
       openModal();
       return;
     }
