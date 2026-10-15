@@ -82,6 +82,7 @@
     token = newToken;
     storeSet(TOKEN_KEY,token);
     display('auth',false);
+    display('viewer',true);
     el('viewer').className = 'visible';
     text('viewerName',user.name || user.username || 'Viewer');
     msg('playStatus','Select Play to watch. Unsupported TV formats will be reported.',false);
