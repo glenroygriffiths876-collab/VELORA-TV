@@ -11,9 +11,14 @@
     return base+path;
   };
   const deviceId=()=>{
-    if(typeof window.v9DeviceId==='function')return window.v9DeviceId();
+    try{if(typeof window.v9DeviceId==='function')return window.v9DeviceId()}catch{}
     let id=localStorage.getItem('velora_client_device_id');
-    if(!id){id='velora-'+crypto.randomUUID();localStorage.setItem('velora_client_device_id',id)}
+    if(!id){
+      const unique=globalThis.crypto?.randomUUID?.()||
+        (Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
+      id='velora-'+unique;
+      localStorage.setItem('velora_client_device_id',id)
+    }
     return id;
   };
   const platform=()=>navigator.userAgent||navigator.platform||'Unknown device';
