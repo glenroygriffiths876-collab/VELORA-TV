@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#090c17">
+<title>VELORA TV | Compatible TV Player</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:#080b16;color:#f8f9ff;font-family:Arial,Helvetica,sans-serif;font-size:18px;min-height:100%}
+body{padding:0 0 45px}a{color:#e4e8ff}button,input{font-family:Arial,Helvetica,sans-serif;font-size:19px}button,a,input{outline-offset:4px}
+button:focus,a:focus,input:focus{outline:4px solid #fff!important;box-shadow:0 0 0 9px rgba(105,95,255,.8)!important}
+header{background:#111526;border-bottom:1px solid #30364e;padding:18px 24px}header strong{font-size:32px;letter-spacing:2px}header small{display:block;color:#bfc6d9;margin-top:4px}
+main{max-width:1240px;margin:0 auto;padding:20px}h1{font-size:31px;margin:8px 0 12px}h2{font-size:24px;margin:16px 0 12px}p{color:#c6cde1;line-height:1.45}
+.panel{background:#14192b;border:1px solid #333c59;border-radius:14px;padding:20px;margin:10px 0 18px}
+#auth{max-width:590px;margin:6vh auto 0}label{display:block;margin:14px 0 6px;font-weight:bold}input{background:#f5f8ff;color:#101528;border:2px solid #7180ac;border-radius:9px;padding:13px;width:100%;min-height:54px}
+button,.btn{display:inline-block;background:#625ce1;color:#fff;border:2px solid #c1c5ff;border-radius:10px;padding:14px 18px;min-height:54px;text-align:center;text-decoration:none;font-weight:bold;cursor:pointer}
+button.secondary,.btn.secondary{background:#27334d;border-color:#788ab8}button[disabled]{opacity:.65}.wide{display:block;width:100%;margin-top:15px}
+.notice{padding:12px 16px;margin:14px 0;background:#252e45;border:1px solid #7382aa;border-radius:8px;color:#fff}.notice.error{background:#491d2b;border-color:#ff8b9c}.muted{color:#c0c9df;font-size:16px}
+.toolbar{padding:14px 0}.toolbar input{max-width:600px}.tvcolumns{width:100%;overflow:hidden}.playerpanel{width:100%;vertical-align:top}
+video{display:block;width:100%;min-height:190px;max-height:65vh;background:#000;object-fit:contain}
+#nowPlaying{font-size:26px;font-weight:bold;margin:15px 0 4px}.actions{margin:14px 0}.actions button,.actions a{margin:4px 6px 4px 0}
+#channelList{margin:12px 0 20px}.channel{width:100%;margin:4px 0;display:block;text-align:left;background:#212940;border:2px solid #414d70;min-height:55px;color:#fff}
+.channel.selected{background:#413b9f;border-color:#d0d4ff}.channel small{display:block;font-size:14px;color:#c2c9e4;font-weight:normal;margin-top:4px}
+#sourceInfo{font-size:15px;color:#c4cbe5}.headerline{margin:15px 0 6px}
+.footer{color:#a8b5cc;text-align:center;font-size:13px;margin:18px}#viewer,#registration,#playerArea,#officialLink{display:none}
+#viewer.visible,#registration.visible,#playerArea.visible,#officialLink.visible{display:block}
+@media(min-width:900px){.tvcolumns{display:table;table-layout:fixed;border-spacing:18px 0}.leftcol{display:table-cell;width:58%;vertical-align:top}.rightcol{display:table-cell;width:42%;vertical-align:top}.leftcol video{min-height:320px}}
+@media(max-width:700px){header strong{font-size:25px}main{padding:12px}.panel{padding:13px}h1{font-size:25px}}
+</style>
+</head>
+<body>
+<header><strong>VELORA <span style="color:#83e3df">TV</span></strong><small>TV-compatible viewing • Private family &amp; tester access</small></header>
+<main>
+<div id="auth" class="panel">
+<h1>Welcome to VELORA</h1>
+<p>Sign in with your VELORA profile. This TV-friendly view works without the newer full-interface scripts.</p>
+<form id="loginFormLite" onsubmit="return false">
+<label for="loginIdentity">Username or email</label><input id="loginIdentity" autocomplete="username" required>
+<label for="loginPass">Password</label><input id="loginPass" type="password" autocomplete="current-password" required>
+<button class="wide" type="submit">Sign in</button>
+<button class="secondary wide" id="showRegistration" type="button">Create a profile</button>
+</form>
+<form id="registration" onsubmit="return false">
+<label for="regName">Name</label><input id="regName" maxlength="80" required>
+<label for="regUser">Username</label><input id="regUser" maxlength="24" required>
+<label for="regEmail">Email (optional)</label><input id="regEmail" type="email">
+<label for="regPass">Password (8+ characters)</label><input id="regPass" type="password" required>
+<button type="submit" class="wide">Create profile</button>
+<button type="button" id="backLogin" class="secondary wide">Back to sign in</button>
+</form>
+<div id="authStatus" class="notice" role="status">Ready to sign in.</div>
+</div>
+<div id="viewer">
+<div class="panel">
+<div style="float:right"><button id="signOut" class="secondary" type="button">Sign out</button></div>
+<h1>Live TV</h1><p>Welcome, <strong id="viewerName">Viewer</strong>. Select a channel using your remote. TVJ is shown first.</p>
+<p class="muted" id="catalogueStatus">Loading live channel guide...</p>
+</div>
+<div class="tvcolumns">
+<div class="leftcol">
+<div id="playerArea" class="panel playerpanel">
+<div id="nowPlaying">TVJ</div>
+<video id="tvVideo" controls preload="none" playsinline></video>
+<div id="playStatus" class="notice" role="status">Choose Play to start watching.</div>
+<div class="actions">
+<button id="tvPlay" type="button">▶ Play</button>
+<button id="trySource" type="button" class="secondary">Try next source</button>
+<button id="tvFull" type="button" class="secondary">Fullscreen</button>
+<a id="officialLink" class="btn secondary" href="#" target="_blank" rel="noopener">Official broadcaster website</a>
+</div>
+<div id="sourceInfo">Video compatibility varies by TV browser. A channel is only confirmed when video actually plays.</div>
+</div>
+</div>
+<div class="rightcol">
+<div class="panel">
+<h2>Channel guide</h2>
+<label for="searchChannels">Find a channel</label><input id="searchChannels" type="text" placeholder="Search name or category">
+<div id="channelCount" class="muted headerline"></div>
+<div id="channelList" aria-label="Live channel list"></div>
+<button id="showMore" class="secondary wide" type="button" style="display:none">Show more channels</button>
+</div>
+</div>
+</div>
+</div>
+<p class="footer">VELORA private preview • Content availability and playback depend on broadcaster sources and your TV browser.</p>
+</main>
+<script src="tv-lite.js?v=1"></script>
+</body>
+</html>
