@@ -33,6 +33,11 @@ ol{padding-left:28px;color:#e1e9fa}
 li{padding:7px 0}
 .foot{font-size:14px;color:#a7b6d0;margin:20px 0}
 @media(max-width:600px){main{padding:13px}header{padding:15px 17px}header b{font-size:24px}.panel{padding:16px}.choice{font-size:18px;padding:16px}.choice small{font-size:14px}}
+
+.bcBuildCredit{display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border:1px solid #394968;border-radius:999px;color:#c5cee1;text-decoration:none;font:13px/1.35 Arial,Helvetica,sans-serif}
+.bcBuildCredit img{display:block;width:20px;height:20px;object-fit:contain;background:white;border-radius:50%}
+.bcBuildCredit strong{color:#fff}
+.bcBuildCredit:hover,.bcBuildCredit:focus{border-color:#d5b780;color:#fff;outline-offset:4px}
 </style>
 </head>
 <body>
@@ -86,6 +91,7 @@ I'm not sure which TV system it uses
 <button id="backChoices" class="choice" type="button">← Choose a different TV type</button>
 </div>
 <p class="foot">Private family/testing preview. The Android TV download is a test build; actual playback depends on your television and channel formats.</p>
+<p class="foot"><a class="bcBuildCredit" href="https://beginningconcepts.org/" target="_blank" rel="noopener noreferrer" aria-label="Made by Beginning Concepts — visit the business website"><img src="https://beginningconcepts.org/assets/brand-logo.webp" alt="" loading="lazy" aria-hidden="true"><span>Made by <strong>Beginning Concepts</strong></span></a></p>
 </main>
 <script src="tv-setup.js?v=1"></script>
 </body>

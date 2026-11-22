@@ -35,3 +35,11 @@
 .loadMoreWrap{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;margin:30px 0 10px}.loadMoreWrap .ghost{min-width:190px}.loadMoreWrap small{color:#757d90}
 .openDetailsHero{background-size:cover;background-position:center}
 @media(max-width:680px){.openLibraryHero{display:block;padding:24px 18px;min-height:230px}.openLibraryHero h1{font-size:52px}.openCount{text-align:left;margin-top:26px}.openCount b{font-size:32px}.openNotice{display:block}.openNotice b{display:block;margin-bottom:6px}.libraryTools{grid-template-columns:1fr}.libraryTabs{overflow:auto;flex-wrap:nowrap;padding-bottom:3px}.libraryTabs .chip{white-space:nowrap}}
+
+/* Discreet Beginning Concepts attribution; no fixed or floating controls. */
+.bcBuildCredit{display:flex;align-items:center;justify-content:center;gap:7px;width:max-content;max-width:calc(100% - 24px);min-height:29px;margin:16px auto 20px;padding:3px 9px;border:1px solid rgba(174,191,215,.15);border-radius:999px;background:rgba(255,255,255,.025);text-decoration:none;color:#aab3c5;font:500 11px/1.4 Arial,Helvetica,sans-serif;white-space:nowrap}
+.bcBuildCredit img{display:block;width:20px;height:20px;object-fit:contain;border-radius:50%;background:#fff}
+.bcBuildCredit strong{font-weight:700;color:#e3e9f5}
+.bcBuildCredit:hover,.bcBuildCredit:focus-visible{color:#fff;border-color:#d3b47b;outline-offset:3px}
+#login .bcBuildCredit{margin-top:14px;margin-bottom:0}
+@media(max-width:700px){#app>.bcBuildCredit{margin-bottom:calc(85px + env(safe-area-inset-bottom,0px))}}
