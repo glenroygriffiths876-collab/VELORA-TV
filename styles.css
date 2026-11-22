@@ -43,3 +43,16 @@
 .bcBuildCredit:hover,.bcBuildCredit:focus-visible{color:#fff;border-color:#d3b47b;outline-offset:3px}
 #login .bcBuildCredit{margin-top:14px;margin-bottom:0}
 @media(max-width:700px){#app>.bcBuildCredit{margin-bottom:calc(85px + env(safe-area-inset-bottom,0px))}}
+
+/* VELORA public Live TV identity — linked Beginning Concepts maker credit beneath the wordmark. */
+.veloraBrandIdentity{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;flex:0 0 auto;min-width:0}
+.veloraBrandIdentity>.brandButton{display:inline-flex;align-items:center;gap:10px;line-height:1.05}
+.veloraBrandIdentity .veloraBrandName{white-space:nowrap;letter-spacing:.18em}
+.veloraBrandBy{display:block;margin:3px 0 0 42px;font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.25;font-weight:600;letter-spacing:.015em;color:#9aa9c8;text-decoration:none;white-space:nowrap}
+.veloraBrandBy:hover,.veloraBrandBy:focus-visible{color:#fff;text-decoration:underline;text-underline-offset:3px}
+#view-movies,#view-series{display:none!important}
+@media(max-width:680px){
+  .topbar{gap:12px}
+  .veloraBrandIdentity>.brandButton{gap:8px}
+  .veloraBrandBy{font-size:9px;margin-left:37px;margin-top:2px}
+}
