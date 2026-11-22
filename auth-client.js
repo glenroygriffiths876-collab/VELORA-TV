@@ -51,7 +51,7 @@
     currentUser=user;
     window.veloraCurrentUser=user;
     window.veloraEnterApp?.(user);
-    track('session_start',{view:'home'});
+    if(user?.role==='admin')track('session_start',{view:'home'});
   }
 
   async function logout(){
@@ -60,20 +60,28 @@
     currentUser=null;
     window.veloraCurrentUser=null;
     window.veloraExitApp?.();
+    $('login')?.classList.remove('hidden');
     showAuth('login');
   }
 
   async function restore(){
+    const adminMode=/(?:[?&])admin=1(?:&|$)/.test(location.search||'');
+    if(!adminMode){
+      localStorage.removeItem(TOKEN_KEY);
+      enter({id:'public-viewer',name:'Viewer',role:'guest'},null);
+      return;
+    }
+    $('login')?.classList.remove('hidden');
     const token=localStorage.getItem(TOKEN_KEY);
     if(!token){showAuth('login');return}
     try{
       const d=await request('/api/auth/me',{headers:{}});
+      if(d.user?.role!=='admin')throw new Error('Administrator required');
       enter(d.user,null);
     }catch{
       localStorage.removeItem(TOKEN_KEY);
       currentUser=null;
       window.veloraCurrentUser=null;
-      window.veloraExitApp?.();
       showAuth('login');
     }
   }
@@ -170,6 +178,7 @@
           password:$('loginPassword')?.value||'',
           deviceId:deviceId(),platform:platform()
         })});
+        if(d.user?.role!=='admin')throw new Error('Owner access only');
         enter(d.user,d.token);
       }catch(err){
         window.toast?.(err.message||'Could not sign in');
@@ -188,6 +197,7 @@
           password:$('registerPassword')?.value||'',
           deviceId:deviceId(),platform:platform()
         })});
+        if(d.user?.role!=='admin')throw new Error('Owner access only');
         enter(d.user,d.token);
         window.toast?.('Your VELORA profile is ready.');
       }catch(err){
@@ -200,8 +210,5 @@
     if(location.hash==='#create-profile')showAuth('register');
     else if(location.hash==='#sign-in')showAuth('login');
   });
-  window.addEventListener('DOMContentLoaded',()=>{
-    if(location.hash==='#create-profile')showAuth('register');
-    restore();
-  });
+  window.addEventListener('DOMContentLoaded',restore);
 })();

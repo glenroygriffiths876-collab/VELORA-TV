@@ -4,8 +4,6 @@
 (function () {
   'use strict';
   var DEFAULT_BACKEND = 'https://velora-tv-api-production.up.railway.app';
-  var TOKEN_KEY = 'velora_auth_token';
-  var token = '';
   var channels = [];
   var filtered = [];
   var chosen = null;
@@ -62,65 +60,12 @@
     storeSet('velora_client_device_id',old);
     return old;
   }
-  function setBusy(form, value) {
-    authBusy = value;
-    var b = form.querySelector('button[type="submit"]');
-    if (b) b.disabled = value;
-  }
-  function authMode(register) {
-    el('registration').className = register ? 'visible' : '';
-    display('loginFormLite',!register);
-    msg('authStatus',register ? 'Create your personal VELORA profile.' : 'Ready to sign in.',false);
-    setTimeout(function () { try { el(register?'regName':'loginIdentity').focus(); } catch (ignore) {} },60);
-  }
-  function showLogin() {
-    display('viewer',false);
-    display('auth',true);
-    authMode(false);
-  }
-  function enter(user,newToken) {
-    token = newToken;
-    storeSet(TOKEN_KEY,token);
-    display('auth',false);
+  function enterPublic() {
     display('viewer',true);
-    el('viewer').className = 'visible';
-    text('viewerName',user.name || user.username || 'Viewer');
+    el('viewer').className='visible';
+    text('viewerName','Viewer');
     msg('playStatus','Select Play to watch. Unsupported TV formats will be reported.',false);
     loadChannels();
-  }
-  function signIn(e,register) {
-    if (e && e.preventDefault) e.preventDefault();
-    if (authBusy) return false;
-    var form = el(register?'registration':'loginFormLite');
-    var data = {deviceId:deviceId(),platform:navigator.userAgent || 'TV browser'};
-    if (register) {
-      data.name = el('regName').value.replace(/^\s+|\s+$/g,'');
-      data.username = el('regUser').value.replace(/^\s+|\s+$/g,'');
-      data.email = el('regEmail').value.replace(/^\s+|\s+$/g,'');
-      data.password = el('regPass').value;
-      if (data.password.length < 8) { msg('authStatus','Password must be at least 8 characters.',true);return false; }
-    } else {
-      data.identifier = el('loginIdentity').value.replace(/^\s+|\s+$/g,'');
-      data.password = el('loginPass').value;
-    }
-    setBusy(form,true);
-    msg('authStatus',register?'Creating your profile...':'Signing in...',false);
-    request('POST',register?'/api/auth/register':'/api/auth/login',data,'',function (err,result) {
-      setBusy(form,false);
-      if (err) { msg('authStatus',err.message,true);return; }
-      if (!result.user || !result.token) { msg('authStatus','Incomplete response from VELORA.',true);return; }
-      enter(result.user,result.token);
-    });
-    return false;
-  }
-  function logout() {
-    var old = token;
-    token = '';
-    storeDelete(TOKEN_KEY);
-    clearTimeout(pendingTimer);
-    try { el('tvVideo').pause(); el('tvVideo').removeAttribute('src'); } catch (ignore) {}
-    request('POST','/api/auth/logout',{},old,function () {});
-    showLogin();
   }
   function tvj(ch) {
     return ch.id === 'jm_tvj_direct' || /^tvj(?:\s+television)?$/i.test(ch.name||'');
@@ -136,7 +81,6 @@
   function loadChannels() {
     text('catalogueStatus','Loading live channels...');
     request('GET','/api/live/lineup',null,'',function (err,result) {
-      if (!token) return;
       if (err || !result.channels || !result.channels.length) {
         text('catalogueStatus',err ? err.message : 'No channels were returned. Try again later.');
         return;
@@ -295,11 +239,6 @@
     try { items[target].scrollIntoView(false); } catch (ignore) {}
   }
   function init() {
-    el('showRegistration').onclick = function () { authMode(true); };
-    el('backLogin').onclick = function () { authMode(false); };
-    el('loginFormLite').onsubmit = function (e) { return signIn(e,false); };
-    el('registration').onsubmit = function (e) { return signIn(e,true); };
-    el('signOut').onclick=logout;
     el('showMore').onclick=function(){showing+=60;renderChannels();};
     el('searchChannels').onkeyup=function(){showing=60;renderChannels();};
     el('tvPlay').onclick = function () {
@@ -314,13 +253,7 @@
     el('tvVideo').addEventListener('playing',onVideoPlaying,false);
     el('tvVideo').addEventListener('error',onVideoError,false);
     document.addEventListener('keydown',remoteKeys,false);
-    token = storeGet(TOKEN_KEY);
-    if (!token) { showLogin(); return; }
-    msg('authStatus','Restoring your profile...',false);
-    request('GET','/api/auth/me',null,token,function (err,result) {
-      if (!err && result && result.user) enter(result.user,token);
-      else { if (err && /expired/i.test(err.message)) storeDelete(TOKEN_KEY); showLogin(); }
-    });
+    enterPublic();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',init,false);
   else init();
