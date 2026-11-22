@@ -35,7 +35,7 @@ test('TV installer is available and modal can open in TV mode',()=>{
 test('deployment includes TV setup and aligned SW shell',()=>{
   assert.match(index,/tv-mode\.css\?v=3/);
   assert.match(index,/install\.js\?v=3/);
-  assert.match(sw,/velora-shell-v78/);
+  assert.match(sw,/velora-shell-v79/);
   assert.match(sw,/tv-setup\.html/);
   assert.match(sw,/tv-setup\.js\?v=1/);
   assert.match(workflow,/cp index\.html tv-lite\.html tv-lite\.js tv-setup\.html tv-setup\.js app\.js/);
