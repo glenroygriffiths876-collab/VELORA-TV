@@ -26,6 +26,11 @@ video{display:block;width:100%;min-height:190px;max-height:65vh;background:#000;
 #viewer.visible,#registration.visible,#playerArea.visible,#officialLink.visible{display:block}
 @media(min-width:900px){.tvcolumns{display:table;table-layout:fixed;border-spacing:18px 0}.leftcol{display:table-cell;width:58%;vertical-align:top}.rightcol{display:table-cell;width:42%;vertical-align:top}.leftcol video{min-height:320px}}
 @media(max-width:700px){header strong{font-size:25px}main{padding:12px}.panel{padding:13px}h1{font-size:25px}}
+
+.bcBuildCredit{display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border:1px solid #394968;border-radius:999px;color:#c5cee1;text-decoration:none;font:13px/1.35 Arial,Helvetica,sans-serif}
+.bcBuildCredit img{display:block;width:20px;height:20px;object-fit:contain;background:white;border-radius:50%}
+.bcBuildCredit strong{color:#fff}
+.bcBuildCredit:hover,.bcBuildCredit:focus{border-color:#d5b780;color:#fff;outline-offset:4px}
 </style>
 </head>
 <body>
@@ -83,6 +88,7 @@ video{display:block;width:100%;min-height:190px;max-height:65vh;background:#000;
 </div>
 </div>
 <p class="footer">VELORA private preview • Content availability and playback depend on broadcaster sources and your TV browser.</p>
+<p class="footer"><a class="bcBuildCredit" href="https://beginningconcepts.org/" target="_blank" rel="noopener noreferrer" aria-label="Made by Beginning Concepts — visit the business website"><img src="https://beginningconcepts.org/assets/brand-logo.webp" alt="" loading="lazy" aria-hidden="true"><span>Made by <strong>Beginning Concepts</strong></span></a></p>
 </main>
 <script src="tv-lite.js?v=1"></script>
 </body>
