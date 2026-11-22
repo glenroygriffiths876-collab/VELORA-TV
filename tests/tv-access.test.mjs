@@ -10,8 +10,8 @@ const server=fs.readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
 
 test('TV remote bridge remains compatible with older browsers',()=>{
   assert.doesNotMatch(bridge,/\b(?:const|let|async)\b|=>|\?\.|\?\?/);
-  assert.ok(html.indexOf('tv-access.js?v=3')<html.indexOf('app.js?v=4'));
-  assert.ok(sw.includes('velora-shell-v80'));
+  assert.ok(html.indexOf('tv-access.js?v=3')<html.indexOf('app.js?v=5'));
+  assert.ok(sw.includes('velora-shell-v81'));
 });
 test('free viewing does not show registration and admin login stays protected',()=>{
   assert.ok(html.includes('id="login" class="loginShell hidden"'));
@@ -30,5 +30,20 @@ test('public home contains no private-preview banner, development warning, or re
   assert.doesNotMatch(ux,/PRIVATE PREVIEW|PRIVATE BETA|trusted friend|family member of the developer|don't share|don’t share|IN DEVELOPMENT|COMING SOON/i);
   assert.ok(!ux.includes('privateNotice'));
   assert.ok(html.includes('ux-v12.js?v=4'));
-  assert.ok(sw.includes('velora-shell-v80'));
+  assert.ok(sw.includes('velora-shell-v81'));
+});
+
+test('Movies and Series do not appear as public navigation or visible screens',()=>{
+  const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');
+  const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
+  assert.doesNotMatch(html,/data-view="movies"|data-view="series"/);
+  assert.match(html,/id="view-movies"[^>]*aria-hidden="true"[^>]*hidden/);
+  assert.match(html,/id="view-series"[^>]*aria-hidden="true"[^>]*hidden/);
+  assert.ok(app.includes("if(name==='movies'||name==='series')name='live'"));
+  assert.match(css,/#view-movies,#view-series\{display:none!important\}/);
+});
+test('VELORA wordmark has the Beginning Concepts website below it',()=>{
+  assert.match(html,/class="veloraBrandBy" href="https:\/\/beginningconcepts\.org\//);
+  assert.match(html,/>by beginningconcepts\.org<\/a>/);
+  assert.match(html,/styles\.css\?v=3/);
 });
