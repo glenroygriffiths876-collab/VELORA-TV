@@ -11,7 +11,7 @@ const server=fs.readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
 test('TV remote bridge remains compatible with older browsers',()=>{
   assert.doesNotMatch(bridge,/\b(?:const|let|async)\b|=>|\?\.|\?\?/);
   assert.ok(html.indexOf('tv-access.js?v=3')<html.indexOf('app.js?v=4'));
-  assert.ok(sw.includes('velora-shell-v79'));
+  assert.ok(sw.includes('velora-shell-v80'));
 });
 test('free viewing does not show registration and admin login stays protected',()=>{
   assert.ok(html.includes('id="login" class="loginShell hidden"'));
