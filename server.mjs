@@ -1288,31 +1288,12 @@ async function api(req,res){
   const compatible=p.match(/^\/api\/public\/compatible\/ae\/([^/]+)$/);
   if(req.method==='GET'&&compatible)return aeCompatibleFeed.serve(req,res,compatible[1]);
 
-  if(req.method==='POST'&&p==='/api/auth/register'){
-    let b={};try{b=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid request'})}
-    const name=String(b.name||'').trim().slice(0,80);
-    const username=String(b.username||'').trim().toLowerCase().slice(0,24);
-    const email=String(b.email||'').trim().toLowerCase().slice(0,160);
-    const password=String(b.password||'');
-    if(name.length<2)return json(res,400,{error:'Enter your name'});
-    if(!/^[a-z0-9_]{3,24}$/.test(username))return json(res,400,{error:'Username must be 3–24 letters, numbers or underscores'});
-    if(AUTH_ADMIN_USERNAME&&username===AUTH_ADMIN_USERNAME)return json(res,409,{error:'That username is reserved'});
-    if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return json(res,400,{error:'Enter a valid email address or leave it blank'});
-    if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters'});
-    if(authDb.users.some(x=>String(x.username||'').toLowerCase()===username))return json(res,409,{error:'That username is already taken'});
-    if(email&&authDb.users.some(x=>String(x.email||'').toLowerCase()===email))return json(res,409,{error:'An account already exists for this email'});
-    const rec=passwordRecord(password);
-    const user={id:uid('usr'),name,username,email,role:'user',passwordSalt:rec.salt,passwordHash:rec.hash,createdAt:new Date().toISOString(),lastLogin:null,lastSeen:null};
-    authDb.users.push(user);saveAuth();
-    const token=issueSession(user,b.deviceId,b.platform);
-    recordEvent(req,user,{...b,email:email?'provided':'',event:'session_start'});
-    return json(res,201,{ok:true,token,user:publicUser(user)});
-  }
+  if(req.method==='POST'&&p==='/api/auth/register')return json(res,410,{error:'VELORA is free to watch. Registration is no longer required.'});
   if(req.method==='POST'&&p==='/api/auth/login'){
     let b={};try{b=JSON.parse(await readBody(req))}catch{return json(res,400,{error:'Invalid request'})}
     const identifier=String(b.identifier||b.email||'').trim().toLowerCase();
     const user=authDb.users.find(x=>String(x.email||'').toLowerCase()===identifier||String(x.username||'').toLowerCase()===identifier);
-    if(!user||!passwordMatches(String(b.password||''),user))return json(res,401,{error:'Incorrect username/email or password'});
+    if(!user||user.role!=='admin'||!passwordMatches(String(b.password||''),user))return json(res,401,{error:'Administrator credentials required'});
     const token=issueSession(user,b.deviceId,b.platform);
     recordEvent(req,user,{...b,event:'session_start'});
     return json(res,200,{ok:true,token,user:publicUser(user)});

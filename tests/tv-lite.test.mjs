@@ -75,22 +75,22 @@ function boot({savedToken='shared-profile-token', failMe=false}={}) {
 
 test('standalone TV page is deployable without modern app bundles',()=>{
   assert.match(index,/tv-lite\.html\?tv=1/);
-  assert.match(html,/<script src="tv-lite\.js\?v=1"><\/script>/);
+  assert.match(html,/<script src="tv-lite\.js\?v=2"><\/script>/);
   assert.match(sw,/tv-lite\.html/);
-  assert.match(sw,/tv-lite\.js\?v=1/);
+  assert.match(sw,/tv-lite\.js\?v=2/);
   assert.doesNotMatch(html,/app\.js|auth-client\.js|real-v7-ingest\.js/);
   assert.doesNotMatch(js,/\b(?:const|let|async)\b|=>|\?\.|\?\?/);
 });
 test('saved profile restores on Lite, opens independent viewer and makes TVJ first',()=>{
   const h=boot();
   assert.equal(h.elements.viewer.style.display,'block');
-  assert.equal(h.elements.viewerName.textContent,'Dad');
+  assert.equal(h.elements.viewerName.textContent,'Viewer');
   assert.match(h.elements.catalogueStatus.textContent,/2 channels/);
   assert.equal(h.elements.nowPlaying.textContent,'TVJ');
   assert.equal(h.elements.channelList.children[0].getAttribute('data-id'),'jm_tvj_direct');
   assert.equal(h.elements.playerArea.className,'panel playerpanel visible');
   assert.equal(h.elements.tvVideo.src,'');
-  assert.ok(h.calls.some(x=>x.url.endsWith('/api/auth/me')));
+  assert.ok(!h.calls.some(x=>x.url.includes('/api/auth/')));
   assert.ok(h.calls.some(x=>x.url.endsWith('/api/live/lineup')));
 });
 test('play stays on chosen channel and uses backend relay source',()=>{
@@ -103,18 +103,17 @@ test('play stays on chosen channel and uses backend relay source',()=>{
   assert.match(h.elements.playStatus.textContent,/No source produced playable video/);
   assert.equal(h.elements.nowPlaying.textContent,'TVJ');
 });
-test('no saved session shows standalone sign-in, and TV can log in',()=>{
+test('no saved session enters Live TV free',()=>{
   const h=boot({savedToken:''});
-  assert.equal(h.elements.auth.style.display,'block');
-  h.elements.loginIdentity.value='daduser';h.elements.loginPass.value='securepassword';
-  h.elements.loginFormLite.onsubmit({preventDefault(){}});
-  assert.equal(h.storage.get('velora_auth_token'),'new-token');
   assert.equal(h.elements.viewer.style.display,'block');
-  assert.ok(h.calls.some(x=>x.url.endsWith('/api/auth/login')));
+  assert.equal(h.elements.viewerName.textContent,'Viewer');
+  assert.ok(h.calls.some(x=>x.url.endsWith('/api/live/lineup')));
+  assert.ok(!h.calls.some(x=>x.url.includes('/api/auth/')));
+  assert.doesNotMatch(html,/id="loginFormLite"|id="registration"|id="signOut"/);
 });
-test('expired sessions do not bypass authentication',()=>{
+test('old session token does not block public Live TV',()=>{
   const h=boot({failMe:true});
-  assert.equal(h.storage.has('velora_auth_token'),false);
-  assert.equal(h.elements.auth.style.display,'block');
-  assert.notEqual(h.elements.viewer.style.display,'block');
+  assert.equal(h.elements.viewer.style.display,'block');
+  assert.ok(!h.calls.some(x=>x.url.includes('/api/auth/')));
+  assert.equal(h.elements.channelList.children[0].getAttribute('data-id'),'jm_tvj_direct');
 });
