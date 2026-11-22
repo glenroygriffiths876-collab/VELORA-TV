@@ -24,3 +24,11 @@ test('free viewing does not show registration and admin login stays protected',(
   assert.ok(server.includes("p==='/api/auth/register')return json(res,410"));
   assert.ok(server.includes("user.role!=='admin'"));
 });
+
+test('public home contains no private-preview banner, development warning, or restricted-sharing language',()=>{
+  const ux=fs.readFileSync(new URL('../ux-v12.js',import.meta.url),'utf8');
+  assert.doesNotMatch(ux,/PRIVATE PREVIEW|PRIVATE BETA|trusted friend|family member of the developer|don't share|don’t share|IN DEVELOPMENT|COMING SOON/i);
+  assert.ok(!ux.includes('privateNotice'));
+  assert.ok(html.includes('ux-v12.js?v=4'));
+  assert.ok(sw.includes('velora-shell-v80'));
+});
