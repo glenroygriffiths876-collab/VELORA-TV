@@ -256,32 +256,7 @@
     openModal();
   }
 
-  async function install() {
-    if (isStandalone()) {
-      toastMsg('VELORA is already installed on this device.');
-      return;
-    }
-
-    const p = platform();
-
-    // TV packages take priority over a browser PWA prompt, so the result behaves like a real TV app.
-    if (p.isTV) {
-      showSmartRoute();
-      return;
-    }
-
-    if (deferredPrompt) {
-      const prompt = deferredPrompt;
-      deferredPrompt = null;
-      prompt.prompt();
-      const choice = await prompt.userChoice.catch(() => ({outcome:'dismissed'}));
-      if (choice?.outcome === 'accepted') toastMsg('VELORA installation started.');
-      setButtonState();
-      return;
-    }
-
-    showSmartRoute();
-  }
+  async function install() { location.href='https://beginningconcepts.org/'; }
 
   window.VeloraInstall = {
     platform,
