@@ -34,6 +34,10 @@
 <link rel="stylesheet" href="ux-v19-programme-search.css?v=1" />
 <link rel="stylesheet" href="ux-v20-instant-tv.css?v=1" />
 <title>Velora TV</title>
+<style>
+#app > .bcBuildCredit{position:static;transform:none;margin:20px auto;flex-shrink:0}
+@media(max-width:700px){#app > .bcBuildCredit{margin-bottom:calc(100px + env(safe-area-inset-bottom,0px))}#app .mobileNav{grid-template-columns:repeat(4,minmax(0,1fr))}}
+</style>
 </head>
 <body>
 <div id="toast" class="toast"></div>
@@ -55,12 +59,11 @@
 <div id="app" class="app hidden">
   <header class="topbar">
     <div class="veloraBrandIdentity">
-      <button class="brand brandButton" data-view="home"><span class="brandMark"><img src="icons/icon.svg" alt="" aria-hidden="true"></span><span class="veloraBrandName">VELORA</span></button>
+      <button class="brand brandButton" data-view="live"><span class="brandMark"><img src="icons/icon.svg" alt="" aria-hidden="true"></span><span class="veloraBrandName">VELORA</span></button>
       <a class="veloraBrandBy" href="https://beginningconcepts.org/" target="_blank" rel="noopener noreferrer" aria-label="VELORA by Beginning Concepts — visit beginningconcepts.org">by beginningconcepts.org</a>
     </div>
     <nav class="mainnav" aria-label="Primary">
-      <button data-view="home" class="active">Home</button>
-      <button data-view="live">Live TV</button>
+      <button data-view="live" class="active">Live TV</button>
       <button data-view="search">Search</button>
     </nav>
     <div class="topActions">
@@ -81,8 +84,8 @@
   </aside>
 
   <main>
-    <section id="view-home" class="view active"></section>
-    <section id="view-live" class="view"></section>
+    <section id="view-home" class="view"></section>
+    <section id="view-live" class="view active"></section>
     <!-- Retired VOD containers are retained solely for compatibility with older rendering modules. -->
     <section id="view-movies" class="view" aria-hidden="true" data-retired="true" hidden></section>
     <section id="view-series" class="view" aria-hidden="true" data-retired="true" hidden></section>
@@ -96,8 +99,7 @@
   <a class="bcBuildCredit" href="https://beginningconcepts.org/" target="_blank" rel="noopener noreferrer" aria-label="Made by Beginning Concepts — visit the business website"><img src="https://beginningconcepts.org/assets/brand-logo.webp" alt="" loading="lazy" aria-hidden="true"><span>Made by <strong>Beginning Concepts</strong></span></a>
 
   <nav class="mobileNav">
-    <button data-view="home" class="active"><span>⌂</span>Home</button>
-    <button data-view="live"><span>◉</span>Live</button>
+    <button data-view="live" class="active"><span>◉</span>Live</button>
     <button data-view="search"><span>⌕</span>Search</button>
     <button data-view="mylist"><span>♡</span>My List</button>
     <button data-view="settings"><span>⚙</span>Settings</button>
@@ -149,5 +151,14 @@
 <script src="ux-v20-instant-tv.js?v=1"></script>
 <script src="install.js?v=4"></script>
 <script src="tv-mode.js?v=2"></script>
+<script>
+// Keep legacy Home calls compatible while making Live TV the landing view.
+(() => {
+  const previous = showView;
+  showView = function(name, ...args) {
+    return previous.call(this, name === "home" ? "live" : name, ...args);
+  };
+})();
+</script>
 </body>
 </html>
